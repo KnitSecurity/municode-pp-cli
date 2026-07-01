@@ -11,9 +11,9 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/KnitSecurity/municode-pp-cli/internal/cliutil"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"municode-pp-cli/internal/cliutil"
 )
 
 // Profile is a named set of flag values saved for reuse across invocations.

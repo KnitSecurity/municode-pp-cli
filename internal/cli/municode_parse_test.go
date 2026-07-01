@@ -113,8 +113,8 @@ func TestMcMentionsSection(t *testing.T) {
 	}{
 		{"See § 1-2 for details.", "1-2", true},
 		{"As provided in Section 1-2.", "1-2", true},
-		{"See § 1-20 for details.", "1-2", false},   // must not match longer section
-		{"Enacted (Ord. 1-2-09).", "1-2", false},    // must not match a date-like token
+		{"See § 1-20 for details.", "1-2", false}, // must not match longer section
+		{"Enacted (Ord. 1-2-09).", "1-2", false},  // must not match a date-like token
 		{"Refer to Sec. 16-28.001.", "16-28.001", true},
 		{"No citation here.", "1-2", false},
 	}

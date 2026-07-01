@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"municode-pp-cli/internal/config"
+	"github.com/KnitSecurity/municode-pp-cli/internal/config"
 )
 
 // TestNetworkErrorRetriesWithBackoff drops the first connection (a network-level

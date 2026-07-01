@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"municode-pp-cli/internal/client"
-	"municode-pp-cli/internal/cliutil"
+	"github.com/KnitSecurity/municode-pp-cli/internal/client"
+	"github.com/KnitSecurity/municode-pp-cli/internal/cliutil"
 
 	"github.com/spf13/cobra"
 )

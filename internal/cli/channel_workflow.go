@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/KnitSecurity/municode-pp-cli/internal/store"
 	"github.com/spf13/cobra"
-	"municode-pp-cli/internal/store"
 )
 
 func newWorkflowCmd(flags *rootFlags) *cobra.Command {

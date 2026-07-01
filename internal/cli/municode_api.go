@@ -13,8 +13,8 @@ import (
 	"strconv"
 	"strings"
 
-	"municode-pp-cli/internal/client"
-	"municode-pp-cli/internal/cliutil"
+	"github.com/KnitSecurity/municode-pp-cli/internal/client"
+	"github.com/KnitSecurity/municode-pp-cli/internal/cliutil"
 )
 
 // Resource type used for synced section documents in the generic store.

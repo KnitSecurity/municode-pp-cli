@@ -9,8 +9,8 @@ import (
 	"os"
 	"strings"
 
+	mcptools "github.com/KnitSecurity/municode-pp-cli/internal/mcp"
 	"github.com/mark3labs/mcp-go/server"
-	mcptools "municode-pp-cli/internal/mcp"
 )
 
 // Transport selection order: --transport flag, then PP_MCP_TRANSPORT env,

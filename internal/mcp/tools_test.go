@@ -10,11 +10,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/KnitSecurity/municode-pp-cli/internal/cliutil"
+	"github.com/KnitSecurity/municode-pp-cli/internal/mcp/bound"
+	"github.com/KnitSecurity/municode-pp-cli/internal/store"
 	mcplib "github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
-	"municode-pp-cli/internal/cliutil"
-	"municode-pp-cli/internal/mcp/bound"
-	"municode-pp-cli/internal/store"
 )
 
 func TestMCPPathResolutionMatchesCLIResolverWithHomeEnv(t *testing.T) {

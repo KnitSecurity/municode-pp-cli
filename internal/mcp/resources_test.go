@@ -12,7 +12,7 @@ import (
 	mcplib "github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 
-	"municode-pp-cli/internal/store"
+	"github.com/KnitSecurity/municode-pp-cli/internal/store"
 )
 
 // seedDefaultStore points mcpDBPath() at a fresh temp home and returns a store

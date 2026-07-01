@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/KnitSecurity/municode-pp-cli/internal/store"
 	"github.com/spf13/cobra"
-	"municode-pp-cli/internal/store"
 )
 
 // isNilOrEmpty checks whether a JSON search hit is only an empty shell.

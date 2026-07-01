@@ -13,8 +13,8 @@ import (
 	"strconv"
 	"strings"
 
-	"municode-pp-cli/internal/client"
-	"municode-pp-cli/internal/store"
+	"github.com/KnitSecurity/municode-pp-cli/internal/client"
+	"github.com/KnitSecurity/municode-pp-cli/internal/store"
 )
 
 // mcStoredDoc is a synced section, stored as a generic "document" resource.

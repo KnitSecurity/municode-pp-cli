@@ -8,9 +8,9 @@ import (
 	"os"
 	"sort"
 
+	"github.com/KnitSecurity/municode-pp-cli/internal/cliutil"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"municode-pp-cli/internal/cliutil"
 )
 
 // agentContextSchemaVersion is bumped on any breaking change to the JSON

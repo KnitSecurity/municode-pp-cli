@@ -6,7 +6,28 @@ Browse and read 3,300+ US municipal codes from the command line, then clone any 
 
 ## Install
 
-The recommended path installs both the `municode-pp-cli` binary and the `pp-municode` agent skill (Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot, and other agents supported by the upstream [`skills`](https://github.com/vercel-labs/skills) CLI) in one shot:
+### From GitHub with Go (no Node, no Printing Press)
+
+Install both binaries directly from source with the Go toolchain (requires Go 1.26 or newer):
+
+```bash
+go install github.com/KnitSecurity/municode-pp-cli/cmd/municode-pp-cli@latest
+go install github.com/KnitSecurity/municode-pp-cli/cmd/municode-pp-mcp@latest
+```
+
+This puts `municode-pp-cli` (the CLI) and `municode-pp-mcp` (the MCP server) in `$(go env GOPATH)/bin` (usually `~/go/bin`). Make sure that directory is on your `PATH`. Or build from a clone:
+
+```bash
+git clone https://github.com/KnitSecurity/municode-pp-cli
+cd municode-pp-cli
+go install ./cmd/municode-pp-cli ./cmd/municode-pp-mcp
+```
+
+No account or API key is required — Municode's public API is unauthenticated. To connect the MCP server to an agent, see the [MCP User Manual](docs/mcp-manual.md) (register it by its absolute path).
+
+### Via Printing Press (CLI + agent skill)
+
+The Printing Press installer sets up both the `municode-pp-cli` binary and the `pp-municode` agent skill (Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot, and other agents supported by the upstream [`skills`](https://github.com/vercel-labs/skills) CLI) in one shot:
 
 ```bash
 npx -y @mvanhorn/printing-press-library install municode
