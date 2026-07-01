@@ -58,6 +58,38 @@ func RefreshCloneResources(s *server.MCPServer) {
 	s.SetResources(resources...)
 }
 
+// RefreshHooks returns server hooks that re-list the clone resources after a
+// clone tool call completes, so a city cloned mid-session appears in
+// resources/list without a server restart (U5, R8). getServer defers the
+// server reference because hooks are installed at construction time, before the
+// *server.MCPServer exists (main.go assigns it, then the closure reads it).
+func RefreshHooks(getServer func() *server.MCPServer) *server.Hooks {
+	h := &server.Hooks{}
+	h.AddAfterCallTool(func(_ context.Context, _ any, req *mcplib.CallToolRequest, _ any) {
+		onAfterCallTool(req, getServer)
+	})
+	return h
+}
+
+// onAfterCallTool refreshes the clone resource list when — and only when — a
+// clone tool call just completed. Tolerant of a nil request or a not-yet-set
+// server so it is safe to fire during startup or from tests.
+func onAfterCallTool(req *mcplib.CallToolRequest, getServer func() *server.MCPServer) {
+	if req == nil || !isCloneTool(req.Params.Name) {
+		return
+	}
+	if s := getServer(); s != nil {
+		RefreshCloneResources(s)
+	}
+}
+
+// isCloneTool reports whether a completed tool call should trigger a resource
+// refresh. The mirrored `clone` command is the only tool that adds sections to
+// the store; every other tool is read-only or leaves the section set unchanged.
+func isCloneTool(name string) bool {
+	return name == "clone"
+}
+
 // buildCloneResources enumerates the inventory resource plus one resource per
 // cloned section. Returns just the inventory resource when the store is
 // missing or empty (never an error, never a network call).

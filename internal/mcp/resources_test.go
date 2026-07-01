@@ -9,8 +9,166 @@ import (
 	"path/filepath"
 	"testing"
 
+	mcplib "github.com/mark3labs/mcp-go/mcp"
+	"github.com/mark3labs/mcp-go/server"
+
 	"municode-pp-cli/internal/store"
 )
+
+// seedDefaultStore points mcpDBPath() at a fresh temp home and returns a store
+// opened at that default path, so tests can exercise the store-pinned refresh
+// path exactly as the running server would.
+func seedDefaultStore(t *testing.T) *store.Store {
+	t.Helper()
+	t.Setenv("MUNICODE_HOME", t.TempDir())
+	path, err := mcpDBPath()
+	if err != nil {
+		t.Fatalf("mcpDBPath: %v", err)
+	}
+	db, err := store.Open(path)
+	if err != nil {
+		t.Fatalf("open default store: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	return db
+}
+
+// TestBuildCloneResourcesReflectsStore proves the resource list is rebuilt from
+// current store contents on every call (no cached snapshot): a section added
+// after the first build shows up on the next build — the mechanism that makes
+// an in-session clone visible without a restart (U5, R8).
+func TestBuildCloneResourcesReflectsStore(t *testing.T) {
+	db := seedDefaultStore(t)
+
+	// Empty store: just the inventory resource, no sections.
+	if got := len(buildCloneResources()); got != 1 {
+		t.Fatalf("empty store: got %d resources, want 1 (inventory only)", got)
+	}
+
+	mcpPutDoc(t, db, 1357, map[string]any{
+		"node_id": "CH1", "parent_id": "18020", "depth": 1,
+		"client": "Boulder", "state": "CO", "product_id": 18020, "job_id": 489931,
+		"title": "Chapter 1", "text": "chapter body", "citation": "https://lib/CH1",
+	})
+	first := buildCloneResources()
+	if len(first) != 2 {
+		t.Fatalf("after 1 clone section: got %d resources, want 2 (inventory + CH1)", len(first))
+	}
+
+	// Simulate an in-session clone adding another section.
+	mcpPutDoc(t, db, 1357, map[string]any{
+		"node_id": "CH1_S1", "parent_id": "CH1", "depth": 2,
+		"client": "Boulder", "state": "CO", "product_id": 18020, "job_id": 489931,
+		"title": "Sec 1-1", "text": "section body", "citation": "https://lib/CH1_S1",
+	})
+	second := buildCloneResources()
+	if len(second) != 3 {
+		t.Fatalf("after in-session clone: got %d resources, want 3 (inventory + CH1 + CH1_S1)", len(second))
+	}
+	uris := map[string]bool{}
+	for _, r := range second {
+		uris[r.Resource.URI] = true
+	}
+	if !uris[sectionURI(1357, "CH1_S1")] {
+		t.Errorf("newly cloned section %s not present after rebuild", sectionURI(1357, "CH1_S1"))
+	}
+}
+
+// TestBuildCloneResourcesIdempotent guards that repeated rebuilds on an
+// unchanged store yield the same URI set with no duplicates.
+func TestBuildCloneResourcesIdempotent(t *testing.T) {
+	db := seedDefaultStore(t)
+	mcpPutDoc(t, db, 1357, map[string]any{
+		"node_id": "CH1", "depth": 1, "client": "Boulder", "state": "CO",
+		"product_id": 18020, "job_id": 489931, "title": "Chapter 1", "text": "b", "citation": "c",
+	})
+	countURIs := func() map[string]int {
+		m := map[string]int{}
+		for _, r := range buildCloneResources() {
+			m[r.Resource.URI]++
+		}
+		return m
+	}
+	a, b := countURIs(), countURIs()
+	if len(a) != len(b) {
+		t.Fatalf("rebuild not idempotent: %d vs %d URIs", len(a), len(b))
+	}
+	for uri, n := range b {
+		if n != 1 {
+			t.Errorf("URI %s appears %d times; want exactly 1 (no duplicates)", uri, n)
+		}
+		if a[uri] != n {
+			t.Errorf("URI %s count drifted between rebuilds: %d vs %d", uri, a[uri], n)
+		}
+	}
+}
+
+// TestSectionReadIndependentOfList is the regression for plan U5 scenario 2:
+// a section resolves via the template read handler even when the listable set
+// was never (re)built — reads must not depend on the list snapshot.
+func TestSectionReadIndependentOfList(t *testing.T) {
+	db := seedDefaultStore(t)
+	mcpPutDoc(t, db, 1357, map[string]any{
+		"node_id": "CH1", "depth": 1, "client": "Boulder", "state": "CO",
+		"product_id": 18020, "job_id": 489931,
+		"title": "Chapter 1", "text": "chapter body", "citation": "https://lib/CH1",
+	})
+	// Deliberately do NOT call buildCloneResources/RefreshCloneResources first.
+	req := mcplib.ReadResourceRequest{}
+	req.Params.URI = sectionURI(1357, "CH1")
+	contents, err := handleSectionResource(context.Background(), req)
+	if err != nil {
+		t.Fatalf("section read without a list refresh failed: %v", err)
+	}
+	if len(contents) != 1 {
+		t.Fatalf("got %d contents, want 1", len(contents))
+	}
+	tc, ok := contents[0].(mcplib.TextResourceContents)
+	if !ok || tc.Text == "" {
+		t.Fatalf("expected non-empty text content, got %#v", contents[0])
+	}
+}
+
+// TestIsCloneTool checks the refresh trigger predicate.
+func TestIsCloneTool(t *testing.T) {
+	if !isCloneTool("clone") {
+		t.Error("clone should trigger a refresh")
+	}
+	for _, name := range []string{"clones", "read", "search", "context", ""} {
+		if isCloneTool(name) {
+			t.Errorf("%q should not trigger a refresh", name)
+		}
+	}
+}
+
+// TestOnAfterCallToolRefreshWiring checks that only a clone tool call reaches
+// the server-refresh path, and that a nil request/server is handled safely.
+func TestOnAfterCallToolRefreshWiring(t *testing.T) {
+	seedDefaultStore(t)
+	s := server.NewMCPServer("test", "0", server.WithResourceCapabilities(false, true))
+	RegisterResources(s)
+
+	calls := 0
+	getServer := func() *server.MCPServer { calls++; return s }
+
+	newReq := func(name string) *mcplib.CallToolRequest {
+		r := &mcplib.CallToolRequest{}
+		r.Params.Name = name
+		return r
+	}
+
+	onAfterCallTool(newReq("clone"), getServer)
+	if calls != 1 {
+		t.Errorf("clone call: getServer invoked %d times, want 1", calls)
+	}
+	onAfterCallTool(newReq("search"), getServer)
+	if calls != 1 {
+		t.Errorf("non-clone call reached refresh path (getServer calls now %d)", calls)
+	}
+	// nil request and nil server must not panic.
+	onAfterCallTool(nil, getServer)
+	onAfterCallTool(newReq("clone"), func() *server.MCPServer { return nil })
+}
 
 func mcpTestStore(t *testing.T) *store.Store {
 	t.Helper()
