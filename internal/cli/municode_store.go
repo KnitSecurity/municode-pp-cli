@@ -21,6 +21,8 @@ import (
 type mcStoredDoc struct {
 	DocID      string     `json:"doc_id"`
 	NodeID     string     `json:"node_id"`
+	ParentID   string     `json:"parent_id,omitempty"`
+	Depth      int        `json:"depth"`
 	ClientID   int        `json:"client_id"`
 	Client     string     `json:"client"`
 	State      string     `json:"state"`
@@ -36,6 +38,25 @@ func mcStoreID(clientID int, docID string) string {
 	return strconv.Itoa(clientID) + ":" + docID
 }
 
+// mcChunkParent reconstructs a doc's TOC parent from a content chunk: the
+// nearest earlier doc exactly one NodeDepth level shallower. Returns "" for a
+// depth-0 doc or when no shallower ancestor precedes it in the chunk.
+func mcChunkParent(docs []mcDoc, i int) string {
+	if i < 0 || i >= len(docs) {
+		return ""
+	}
+	d := docs[i]
+	if d.NodeDepth <= 0 {
+		return ""
+	}
+	for j := i - 1; j >= 0; j-- {
+		if docs[j].NodeDepth == d.NodeDepth-1 {
+			return docs[j].Id
+		}
+	}
+	return ""
+}
+
 // mcSyncCode walks the code's TOC tree and stores every section document.
 // Content is delivered in chunks (a node fetch returns its whole chunk of
 // Docs), so a `covered` set dedups and bounds the number of API calls. Returns
@@ -45,8 +66,14 @@ func mcSyncCode(ctx context.Context, c *client.Client, db *store.Store, res *mcR
 	stored := 0
 	partial := false
 	// BFS queue of node ids; start at the root (nodeId == productId).
-	queue := []string{strconv.Itoa(res.ProductID)}
+	root := strconv.Itoa(res.ProductID)
+	queue := []string{root}
 	visited := map[string]bool{}
+	// TOC hierarchy captured from the children walk: parentOf[child]=node.
+	// depthOf tracks BFS depth (root=0). Used as a fallback when a doc's
+	// within-chunk parent cannot be derived from the chunk's NodeDepth run.
+	parentOf := map[string]string{}
+	depthOf := map[string]int{root: 0}
 	fetches := 0
 
 	for len(queue) > 0 {
@@ -69,7 +96,14 @@ func mcSyncCode(ctx context.Context, c *client.Client, db *store.Store, res *mcR
 			return stored, partial, fmt.Errorf("walking TOC at %s: %w", node, err)
 		}
 		for _, ch := range children {
-			if ch.Id != "" && !visited[ch.Id] {
+			if ch.Id == "" {
+				continue
+			}
+			if _, seen := parentOf[ch.Id]; !seen {
+				parentOf[ch.Id] = node
+				depthOf[ch.Id] = depthOf[node] + 1
+			}
+			if !visited[ch.Id] {
 				queue = append(queue, ch.Id)
 			}
 		}
@@ -93,16 +127,30 @@ func mcSyncCode(ctx context.Context, c *client.Client, db *store.Store, res *mcR
 			}
 			return stored, partial, fmt.Errorf("fetching content at %s: %w", node, err)
 		}
-		for _, d := range docs {
+		for i, d := range docs {
 			covered[d.Id] = true
 			text := mcHTMLToText(d.Content)
 			title := mcHTMLToText(d.TitleHtml)
 			if strings.TrimSpace(text) == "" && strings.TrimSpace(title) == "" {
 				continue
 			}
+			// Depth: prefer the API's NodeDepth; fall back to the BFS depth.
+			depth := d.NodeDepth
+			if depth == 0 {
+				depth = depthOf[d.Id]
+			}
+			// Parent: nearest earlier doc in this chunk one level shallower
+			// (reconstructs chapter->section within a chunk); otherwise the
+			// TOC parent captured during the BFS children walk.
+			parentID := mcChunkParent(docs, i)
+			if parentID == "" {
+				parentID = parentOf[d.Id]
+			}
 			rec := mcStoredDoc{
 				DocID:      d.Id,
 				NodeID:     d.Id,
+				ParentID:   parentID,
+				Depth:      depth,
 				ClientID:   res.ClientID,
 				Client:     res.ClientName,
 				State:      res.StateAbbr,
