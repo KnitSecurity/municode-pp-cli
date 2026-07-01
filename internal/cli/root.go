@@ -257,6 +257,7 @@ See README.md or the bundled SKILL.md for recipes.`,
 	rootCmd.AddCommand(newCitiesCmd(flags))
 	rootCmd.AddCommand(newTocCmd(flags))
 	rootCmd.AddCommand(newReadCmd(flags))
+	rootCmd.AddCommand(newClonesCmd(flags))
 	rootCmd.AddCommand(newNovelCloneCmd(flags))
 	rootCmd.AddCommand(newNovelCompareCmd(flags))
 	rootCmd.AddCommand(newNovelDefsCmd(flags))

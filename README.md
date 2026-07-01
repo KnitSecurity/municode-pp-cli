@@ -90,6 +90,8 @@ To install:
 
 Requires Claude Desktop 1.0.0 or later. Pre-built bundles ship for macOS Apple Silicon (`darwin-arm64`) and Windows (`amd64`, `arm64`); for other platforms, use the manual config below.
 
+Once connected, call the `context` tool first — it front-loads the clone-first workflow and the offline-vs-live tool split. The server also exposes the local clone as MCP **resources**: `municode://clones` (inventory) and `municode://clone/{clientId}/{nodeId}` (one section as plain text). Resource reads are offline, and a city cloned mid-session appears in `resources/list` without a restart. See the **[MCP User Manual](docs/mcp-manual.md)** for a plain-language guide, and [docs/local-clone-mcp.md](docs/local-clone-mcp.md) for the offline workflow detail.
+
 <details>
 <summary>Manual JSON config (advanced)</summary>
 
@@ -167,6 +169,13 @@ These capabilities aren't available in any other tool for this API.
   ```bash
   municode-pp-cli stale --agent
   ```
+- **`clones`** — List the municipalities already cloned into the local store, with codification version, section count, and last-synced time. Offline only; makes no API call.
+
+  _Reach for this to see what an agent can answer offline before deciding whether to `clone` a new city or re-clone a stale one._
+
+  ```bash
+  municode-pp-cli clones --json
+  ```
 
 ### Cross-city intelligence
 - **`compare`** — Lay one topic (e.g. short-term rentals) side by side across several cities, aligning each city's controlling section.
@@ -210,13 +219,13 @@ municode-pp-cli compare "noise ordinance" --city "Atlanta, GA" --city "Savannah,
 
 After cloning both cities, aligns the controlling section per city and narrows the deeply nested response to just city, citation, and heading.
 
-### Read a section as clean text
+### Read a section as clean text (offline when cloned)
 
 ```bash
 municode-pp-cli read "Atlanta, GA" PTIICOORENOR_CH1GEPR --json
 ```
 
-Fetches a chapter/section chunk and returns each section's title and HTML-stripped plaintext.
+Fetches a chapter/section chunk and returns each section's title and HTML-stripped plaintext. Choose the data source with `--data-source`: `auto` (default) reads the local clone when the section is present and falls back to a live API call otherwise; `local` reads only the clone and makes no network call; `live` always fetches from the API. See [docs/local-clone-mcp.md](docs/local-clone-mcp.md) for the offline workflow.
 
 ### Detect what changed since you cloned
 

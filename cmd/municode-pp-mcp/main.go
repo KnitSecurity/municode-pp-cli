@@ -27,13 +27,21 @@ const (
 var version = "0.0.0-dev"
 
 func main() {
-	s := server.NewMCPServer(
+	// s is referenced by the resource-refresh hook, which is installed at
+	// construction time (below) but must call back into the built server after
+	// an in-session `clone` tool runs so the new city appears in resources/list
+	// without a restart. The closure reads s after the assignment completes.
+	var s *server.MCPServer
+	s = server.NewMCPServer(
 		"Municode",
 		version,
 		server.WithToolCapabilities(false),
+		server.WithResourceCapabilities(false, true),
+		server.WithHooks(mcptools.RefreshHooks(func() *server.MCPServer { return s })),
 	)
 
 	mcptools.RegisterTools(s)
+	mcptools.RegisterResources(s)
 
 	transport := flag.String("transport", defaultTransport(), "MCP transport: stdio | http")
 	addr := flag.String("addr", defaultHTTPAddr, "bind address for http transport (host:port or :port)")

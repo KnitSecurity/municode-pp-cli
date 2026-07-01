@@ -77,6 +77,13 @@ These capabilities aren't available in any other tool for this API.
   ```bash
   municode-pp-cli stale --agent
   ```
+- **`clones`** — List the municipalities already cloned into the local store, with codification version, section count, and last-synced time. Offline only; no API call.
+
+  _Reach for this to see what you can answer offline before deciding whether to `clone` a new city or re-clone a stale one._
+
+  ```bash
+  municode-pp-cli clones --json
+  ```
 
 ### Cross-city intelligence
 - **`compare`** — Lay one topic (e.g. short-term rentals) side by side across several cities, aligning each city's controlling section.
@@ -161,13 +168,13 @@ municode-pp-cli compare "noise ordinance" --city "Atlanta, GA" --city "Savannah,
 
 After cloning both cities, aligns the controlling section per city and narrows the deeply nested response to just city, citation, and heading.
 
-### Read a section as clean text
+### Read a section as clean text (offline when cloned)
 
 ```bash
 municode-pp-cli read "Atlanta, GA" PTIICOORENOR_CH1GEPR --json
 ```
 
-Fetches a chapter/section chunk and returns each section's title and HTML-stripped plaintext.
+Fetches a chapter/section chunk and returns each section's title and HTML-stripped plaintext. Pick the data source with `--data-source`: `auto` (default) reads the clone when present and falls back to live; `local` reads only the clone (no network); `live` always calls the API. Full offline/MCP workflow: [docs/local-clone-mcp.md](docs/local-clone-mcp.md).
 
 ### Detect what changed since you cloned
 
@@ -316,6 +323,8 @@ Parse `$ARGUMENTS`:
    claude mcp add municode-pp-mcp -- municode-pp-mcp
    ```
 3. Verify: `claude mcp list`
+
+Once connected, call the `context` tool first for the clone-first workflow and the offline-vs-live tool split. The server also exposes the local clone as resources — `municode://clones` (inventory) and `municode://clone/{clientId}/{nodeId}` (one section as plain text); reads are offline and a mid-session clone appears in `resources/list` without a restart. See [docs/local-clone-mcp.md](docs/local-clone-mcp.md).
 
 ## Direct Use
 

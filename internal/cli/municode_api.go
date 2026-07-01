@@ -58,6 +58,7 @@ type mcDoc struct {
 	Id        string `json:"Id"`
 	TitleHtml string `json:"TitleHtml"`
 	Content   string `json:"Content"`
+	NodeDepth int    `json:"NodeDepth"`
 }
 
 type mcContentResp struct {

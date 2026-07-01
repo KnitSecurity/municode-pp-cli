@@ -824,6 +824,25 @@ func handleContext(_ context.Context, _ mcplib.CallToolRequest) (*mcplib.CallToo
 		"paths":       paths,
 		// tool_surface tells agents which surface a capability lives on.
 		"tool_surface": "MCP exposes typed endpoint tools plus a runtime mirror of user-facing CLI commands. Endpoint tools keep typed schemas; command-mirror tools shell out to the companion municode-pp-cli binary.",
+		// clone_workflow is the authoritative loop for answering questions about a
+		// city's code: clone once, then answer offline from the local mirror;
+		// reach for live tools only to discover or refresh. Reinforced in the
+		// clones/read command help so the mirrored tool descriptions carry the
+		// same framing.
+		"clone_workflow": map[string]any{
+			"summary": "Clone once, then answer offline. To work with a city's municipal code, first `clone \"<City, ST>\"` to pull its full code into the local mirror; after that, answer questions offline from the clone and the municode://clone/... resources — no further API calls. Use the live tools only to discover a city or refresh a stale clone.",
+			"steps": []string{
+				"1. Discover: if you don't know the city is available, use the live `clients`/`states`/`products` tools (these hit the API).",
+				"2. Clone: run `clone \"<City, ST>\"` once to mirror the whole code locally (TOC + content + FTS + ordinance history).",
+				"3. Answer offline (no network): `search`, `read --data-source local`, `defs`, `history`, `xref`, `compare`, and the municode://clones + municode://clone/{clientId}/{nodeId} resources all read the local mirror.",
+				"4. Check freshness: `stale` reports whether upstream has a newer codification; `diff` shows section-level drift since you cloned.",
+				"5. Refresh: re-run `clone` to update the mirror; a mid-session clone appears in resources/list without a restart.",
+			},
+			"offline_tools": []string{"search", "read (--data-source local|auto)", "defs", "history", "xref", "compare", "clones", "sql"},
+			"live_tools":    []string{"clients", "states", "products", "codestoc", "content", "versions", "diff", "stale"},
+			"resources":     []string{"municode://clones", "municode://clone/{clientId}/{nodeId}"},
+			"tip":           "For a 'what does the code say' question, prefer the offline tools/resources over the live API tools once the city is cloned. Use `clones` to see what is already available offline.",
+		},
 		"resources": []map[string]any{
 			{
 				"name":        "clients",

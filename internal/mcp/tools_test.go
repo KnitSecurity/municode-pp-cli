@@ -608,3 +608,83 @@ func mcpTextContent(t *testing.T, result *mcplib.CallToolResult) string {
 	}
 	return content.Text
 }
+
+// TestContextExposesCloneWorkflow is the U6 discoverability check: the MCP
+// `context` response carries the clone-first workflow guidance and a legible
+// offline-vs-live tool split, so an agent reading only the context is steered
+// to clone once and answer offline (R4, R5).
+func TestContextExposesCloneWorkflow(t *testing.T) {
+	result, err := handleContext(context.Background(), mcplib.CallToolRequest{})
+	if err != nil {
+		t.Fatalf("handleContext: %v", err)
+	}
+	text := mcpTextContent(t, result)
+
+	var ctx map[string]any
+	if err := json.Unmarshal([]byte(text), &ctx); err != nil {
+		t.Fatalf("context is not valid JSON: %v", err)
+	}
+	cw, ok := ctx["clone_workflow"].(map[string]any)
+	if !ok {
+		t.Fatalf("context missing clone_workflow object; keys=%v", keysOfAny(ctx))
+	}
+
+	// The clone-first framing is present and discoverable.
+	summary, _ := cw["summary"].(string)
+	if !strings.Contains(summary, "Clone once") || !strings.Contains(summary, "offline") {
+		t.Errorf("clone_workflow summary lacks the clone-first framing: %q", summary)
+	}
+
+	// The offline/live split is legible and puts the right tools on each side.
+	offline := toStringSet(cw["offline_tools"])
+	live := toStringSet(cw["live_tools"])
+	if !hasPrefixIn(offline, "search") || !hasPrefixIn(offline, "read") {
+		t.Errorf("offline_tools should include search and read; got %v", offline)
+	}
+	for _, liveOnly := range []string{"clients", "content"} {
+		if !live[liveOnly] {
+			t.Errorf("live_tools should include %q; got %v", liveOnly, live)
+		}
+	}
+	// A tool must not be advertised as both offline and live.
+	for name := range offline {
+		if live[name] {
+			t.Errorf("tool %q listed as both offline and live", name)
+		}
+	}
+
+	// The clone resources are referenced so an agent can find them.
+	res := toStringSet(cw["resources"])
+	if !res["municode://clones"] {
+		t.Errorf("clone_workflow.resources should reference municode://clones; got %v", res)
+	}
+}
+
+func keysOfAny(m map[string]any) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	return out
+}
+
+func toStringSet(v any) map[string]bool {
+	out := map[string]bool{}
+	if arr, ok := v.([]any); ok {
+		for _, e := range arr {
+			if s, ok := e.(string); ok {
+				out[s] = true
+			}
+		}
+	}
+	return out
+}
+
+func hasPrefixIn(set map[string]bool, prefix string) bool {
+	for k := range set {
+		if strings.HasPrefix(k, prefix) {
+			return true
+		}
+	}
+	return false
+}
