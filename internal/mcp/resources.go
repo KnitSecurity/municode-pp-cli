@@ -50,12 +50,20 @@ func RegisterResources(s *server.MCPServer) {
 }
 
 // RefreshCloneResources rebuilds the listable resource set from the current
-// store contents and replaces the server's resource list. Re-callable so an
-// in-session clone becomes visible without a restart (see U5). The read
-// template registered in RegisterResources is unaffected.
+// store contents and re-registers it. Re-callable so an in-session clone
+// becomes visible without a restart (see U5). The read template registered in
+// RegisterResources is unaffected.
+//
+// It uses AddResources rather than SetResources deliberately: SetResources
+// clears the resource map and repopulates it under two separate locks, leaving
+// a window in which a concurrent resources/list observes an empty set (even the
+// static inventory disappears). AddResources upserts by URI under a single
+// lock, so there is no empty window and the refresh stays idempotent. The clone
+// resource set is append/overwrite — a clone never deletes a section — so we
+// never need SetResources' removal semantics here.
 func RefreshCloneResources(s *server.MCPServer) {
 	resources := buildCloneResources()
-	s.SetResources(resources...)
+	s.AddResources(resources...)
 }
 
 // RefreshHooks returns server hooks that re-list the clone resources after a

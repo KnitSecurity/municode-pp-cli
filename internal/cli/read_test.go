@@ -60,13 +60,21 @@ func TestMcReadLocalSections(t *testing.T) {
 		t.Error("chapter read leaked an unrelated section")
 	}
 
-	// Reading a leaf section returns just that section.
+	// Reading a leaf section returns just that section, with the stored text
+	// AND citation faithfully carried through. This is the CLI half of the
+	// KTD5/U4-scenario-5 parity guarantee: the offline `read` and the MCP
+	// `resources/read` (internal/mcp mcpReadSection, covered by its own test)
+	// both surface the same stored $.text/$.citation for a leaf node, so the
+	// two offline surfaces cannot diverge on a section's content.
 	leaf, err := mcReadLocalSections(ctx, db, 1357, "CH1_S1")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(leaf) != 1 || leaf[0].Text != "section one body" {
 		t.Errorf("leaf read = %d docs, want 1 with section one body", len(leaf))
+	}
+	if leaf[0].Citation != "https://lib/CH1_S1" {
+		t.Errorf("leaf citation = %q, want the stored citation (parity with resources/read)", leaf[0].Citation)
 	}
 
 	// Absent node -> empty, no error (offline miss).

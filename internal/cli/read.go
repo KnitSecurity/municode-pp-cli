@@ -36,6 +36,10 @@ func newReadCmd(flags *rootFlags) *cobra.Command {
 			"Data source (--data-source): 'auto' (default) reads the local clone when the section is " +
 			"present and falls back to a live API call otherwise; 'local' reads only the clone and makes " +
 			"no network call (empty if the city is not cloned); 'live' always fetches from the API.\n\n" +
+			"Grouping note: the offline read (local/auto) returns the section plus its direct child " +
+			"sections from the clone; a live read returns the API's content chunk, which for a container " +
+			"node (a title or chapter) may span more levels. For a leaf section both return the same text " +
+			"and citation.\n\n" +
 			"Use 'toc' to find the node id. Use 'search' or 'defs' to locate a section by topic. The " +
 			"offline path reads the default clone store only.",
 		Example:     "  municode-pp-cli read \"Atlanta, GA\" PTIICOORENOR_CH1GEPR\n  municode-pp-cli read \"Boulder, CO\" TIT1GEAD --data-source local",
@@ -63,20 +67,24 @@ func newReadCmd(flags *rootFlags) *cobra.Command {
 			// Offline path: local or auto, read from the default clone store.
 			if ds == "local" || ds == "auto" {
 				out, served, err := readLocalSections(ctx, args[0], args[1])
-				if err != nil {
+				switch {
+				case err != nil && ds == "local":
 					return err
-				}
-				if served {
+				case err != nil:
+					// auto: a readable-but-degraded local store (e.g. locked
+					// mid-clone) must not fail the read — fall back to the live
+					// API per KTD3's auto contract instead of surfacing the error.
+					fmt.Fprintf(cmd.ErrOrStderr(), "local clone unavailable (%v); falling back to live\n", err)
+				case served:
 					return renderRead(cmd, flags, citation, out)
-				}
-				if ds == "local" {
+				case ds == "local":
 					fmt.Fprintf(cmd.ErrOrStderr(), "no local clone of %s (or node %q not cloned)\nrun: municode-pp-cli clone %q\n", args[0], args[1], args[0])
 					if flags.asJSON || flags.agent {
 						fmt.Fprintln(cmd.OutOrStdout(), "[]")
 					}
 					return nil
 				}
-				// auto: fall through to live.
+				// auto with a miss or a degraded store: fall through to live.
 			}
 
 			// Live path.
