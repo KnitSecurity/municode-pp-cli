@@ -14,9 +14,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"municode-pp-cli/internal/client"
-	"municode-pp-cli/internal/config"
-	"municode-pp-cli/internal/store"
+	"github.com/KnitSecurity/municode-pp-cli/internal/client"
+	"github.com/KnitSecurity/municode-pp-cli/internal/config"
+	"github.com/KnitSecurity/municode-pp-cli/internal/store"
 )
 
 // mcFakeDoc mirrors the fields of a Municode CodesContent doc the clone reads.

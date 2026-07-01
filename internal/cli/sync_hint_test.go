@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/KnitSecurity/municode-pp-cli/internal/store"
 	"github.com/spf13/cobra"
-	"municode-pp-cli/internal/store"
 )
 
 func newSyncHintTestStore(t *testing.T) *store.Store {

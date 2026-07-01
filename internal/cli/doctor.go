@@ -13,11 +13,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/KnitSecurity/municode-pp-cli/internal/client"
+	"github.com/KnitSecurity/municode-pp-cli/internal/cliutil"
+	"github.com/KnitSecurity/municode-pp-cli/internal/config"
+	"github.com/KnitSecurity/municode-pp-cli/internal/store"
 	"github.com/spf13/cobra"
-	"municode-pp-cli/internal/client"
-	"municode-pp-cli/internal/cliutil"
-	"municode-pp-cli/internal/config"
-	"municode-pp-cli/internal/store"
 )
 
 // looksLikeDoctorInterstitial reports whether the response body matches a known

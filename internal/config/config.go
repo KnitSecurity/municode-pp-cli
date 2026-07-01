@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/KnitSecurity/municode-pp-cli/internal/cliutil"
 	"github.com/pelletier/go-toml/v2"
-	"municode-pp-cli/internal/cliutil"
 )
 
 type Config struct {

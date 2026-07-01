@@ -1,4 +1,4 @@
-module municode-pp-cli
+module github.com/KnitSecurity/municode-pp-cli
 
 go 1.26.4
 

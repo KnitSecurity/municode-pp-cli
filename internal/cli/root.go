@@ -13,11 +13,11 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/KnitSecurity/municode-pp-cli/internal/client"
+	"github.com/KnitSecurity/municode-pp-cli/internal/cliutil"
+	"github.com/KnitSecurity/municode-pp-cli/internal/config"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"municode-pp-cli/internal/client"
-	"municode-pp-cli/internal/cliutil"
-	"municode-pp-cli/internal/config"
 )
 
 type rootFlags struct {

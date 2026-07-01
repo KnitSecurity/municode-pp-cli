@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"municode-pp-cli/internal/store"
+	"github.com/KnitSecurity/municode-pp-cli/internal/store"
 )
 
 func TestSyncSingleObject_PreservesLargeIntegerResourceIDs(t *testing.T) {

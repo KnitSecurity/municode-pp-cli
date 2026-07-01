@@ -20,10 +20,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/KnitSecurity/municode-pp-cli/internal/mcp/bound"
+	"github.com/KnitSecurity/municode-pp-cli/internal/mcp/cobratree"
 	mcplib "github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
-	"municode-pp-cli/internal/mcp/bound"
-	"municode-pp-cli/internal/mcp/cobratree"
 )
 
 // RegisterIntents adds generated intent tools to the MCP server.

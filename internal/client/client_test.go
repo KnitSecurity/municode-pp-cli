@@ -14,7 +14,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"municode-pp-cli/internal/config"
+	"github.com/KnitSecurity/municode-pp-cli/internal/config"
 )
 
 func TestTruncateBody(t *testing.T) {

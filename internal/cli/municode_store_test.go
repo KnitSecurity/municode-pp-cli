@@ -12,21 +12,21 @@ func TestMcChunkParent(t *testing.T) {
 	// A chapter chunk: chapter (depth 2), then its sections (depth 3), with a
 	// nested article (depth 3) that has its own sub-section (depth 4).
 	docs := []mcDoc{
-		{Id: "CH1", NodeDepth: 2},            // 0: chapter (chunk root)
-		{Id: "CH1_S1", NodeDepth: 3},         // 1: section -> CH1
-		{Id: "CH1_S2", NodeDepth: 3},         // 2: section -> CH1
-		{Id: "CH1_ART1", NodeDepth: 3},       // 3: article -> CH1
-		{Id: "CH1_ART1_SS1", NodeDepth: 4},   // 4: sub-section -> CH1_ART1
+		{Id: "CH1", NodeDepth: 2},          // 0: chapter (chunk root)
+		{Id: "CH1_S1", NodeDepth: 3},       // 1: section -> CH1
+		{Id: "CH1_S2", NodeDepth: 3},       // 2: section -> CH1
+		{Id: "CH1_ART1", NodeDepth: 3},     // 3: article -> CH1
+		{Id: "CH1_ART1_SS1", NodeDepth: 4}, // 4: sub-section -> CH1_ART1
 	}
 	cases := []struct {
 		i          int
 		wantParent string
 	}{
-		{0, ""},               // chunk root: no in-chunk parent
-		{1, "CH1"},            // section under chapter
-		{2, "CH1"},            // section under chapter
-		{3, "CH1"},            // article under chapter
-		{4, "CH1_ART1"},       // sub-section under the article, not the chapter
+		{0, ""},         // chunk root: no in-chunk parent
+		{1, "CH1"},      // section under chapter
+		{2, "CH1"},      // section under chapter
+		{3, "CH1"},      // article under chapter
+		{4, "CH1_ART1"}, // sub-section under the article, not the chapter
 	}
 	for _, c := range cases {
 		if got := mcChunkParent(docs, c.i); got != c.wantParent {

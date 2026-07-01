@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"municode-pp-cli/internal/config"
+	"github.com/KnitSecurity/municode-pp-cli/internal/config"
 )
 
 // recordingRoundTripper counts how many times its RoundTrip method is
