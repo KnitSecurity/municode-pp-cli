@@ -1,3 +1,31 @@
+# Build output
 build/
+*.mcpb
+
+# Local SQLite store and clone artifacts (never commit cloned code)
 *.db
+*.db-wal
+*.db-shm
+
+# Locally built binaries
 municode-pp-cli
+municode-pp-mcp
+
+# Printing Press generation artifacts — transient build/run state, not part of
+# the distributable CLI (they also embed machine-local paths).
+.manuscripts/
+.runstate/
+.printing-press-smoke/
+
+# Test / coverage output
+*.out
+coverage.*
+*.test
+
+# Editor / OS cruft
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.idea/
+.vscode/
