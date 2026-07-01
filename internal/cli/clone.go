@@ -31,8 +31,9 @@ func newNovelCloneCmd(flags *rootFlags) *cobra.Command {
 			"table of contents, fetches every section, stores it in local SQLite with full-text search, and " +
 			"builds the ordinance-history lineage index. It also writes a clean Markdown/text tree an agent " +
 			"can read directly with no further API calls: by default into a per-city folder next to the " +
-			"database (e.g. ~/municode-clones/atlanta-ga). Use --export DIR to choose the location, or " +
-			"--no-export to store only the database.\n\n" +
+			"database in the data directory, named for the city (e.g. atlanta-ga). Run 'doctor' to see the " +
+			"resolved data directory. Use --export DIR to choose the location, or --no-export to store only " +
+			"the database.\n\n" +
 			"Scope: current authoritative text plus the full ordinance-change lineage embedded in each " +
 			"section. Verbatim text of superseded code versions is a paid Municode (CodeBank) feature and is " +
 			"not included. After clone, 'search', 'read', 'defs', 'history', 'xref', 'compare', and 'diff' all " +
@@ -108,9 +109,9 @@ func newNovelCloneCmd(flags *rootFlags) *cobra.Command {
 			clonedAt := time.Now().UTC().Format(time.RFC3339)
 
 			// Export a readable Markdown/text tree. By default it goes to a
-			// per-city subfolder next to the database (e.g.
-			// ~/municode-clones/atlanta-ga), so a bare `clone` produces a browsable
-			// copy with no extra flags. --export overrides the location;
+			// per-city subfolder next to the database (in the resolved data
+			// directory), named for the city, so a bare `clone` produces a
+			// browsable copy with no extra flags. --export overrides the location;
 			// --no-export skips writing files (store only). Automated verify/
 			// dogfood runs skip the default export to avoid surprise file writes.
 			exportDir := flagExport
