@@ -177,6 +177,17 @@ func mcSyncCode(ctx context.Context, c *client.Client, db *store.Store, res *mcR
 	return stored, partial, nil
 }
 
+// mcReadLocalSections returns the stored sections for a node from the clone:
+// the node itself plus its direct children (approximating a live content
+// chunk). Empty (not error) when the node is not cloned. Offline only.
+func mcReadLocalSections(ctx context.Context, db *store.Store, clientID int, nodeID string) ([]mcStoredDoc, error) {
+	return mcScanDocs(ctx, db, `SELECT data FROM resources
+		WHERE resource_type = ? AND json_extract(data,'$.client_id') = ?
+		  AND (json_extract(data,'$.node_id') = ? OR json_extract(data,'$.parent_id') = ?)
+		ORDER BY json_extract(data,'$.depth'), json_extract(data,'$.node_id')`,
+		mcDocType, clientID, nodeID, nodeID)
+}
+
 // mcLoadCityDocs returns all stored documents for one municipality (by client id).
 func mcLoadCityDocs(ctx context.Context, db *store.Store, clientID int) ([]mcStoredDoc, error) {
 	return mcScanDocs(ctx, db, `SELECT data FROM resources WHERE resource_type = ? AND json_extract(data,'$.client_id') = ?`,
