@@ -1,0 +1,245 @@
+{
+  "api_name": "municode",
+  "base_url": "https://api.municode.com",
+  "description": "Every Municode feature, plus an offline local mirror, real full-text search, change tracking, and citation tooling no other Municode tool has.",
+  "mcp_ready": "full",
+  "http_transport": "standard",
+  "auth": {
+    "type": "none"
+  },
+  "required_headers": [
+    {
+      "name": "User-Agent",
+      "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+    },
+    {
+      "name": "Referer",
+      "value": "https://library.municode.com/"
+    }
+  ],
+  "tools": [
+    {
+      "name": "clients_by-name",
+      "description": "Resolve a municipality by name and state. Required: name, state-abbr. Returns the Client.",
+      "method": "GET",
+      "path": "/Clients/name",
+      "no_auth": true,
+      "params": [
+        {
+          "name": "name",
+          "wire_name": "clientName",
+          "type": "string",
+          "location": "query",
+          "description": "Municipality name (e.g. atlanta, savannah)",
+          "required": true
+        },
+        {
+          "name": "state-abbr",
+          "wire_name": "stateAbbr",
+          "type": "string",
+          "location": "query",
+          "description": "Two-letter state abbreviation",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "clients_by-state",
+      "description": "List all municipalities in a state. Required: state-abbr. Returns array of Client.",
+      "method": "GET",
+      "path": "/Clients/stateAbbr",
+      "no_auth": true,
+      "params": [
+        {
+          "name": "state-abbr",
+          "wire_name": "stateAbbr",
+          "type": "string",
+          "location": "query",
+          "description": "Two-letter state abbreviation",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "codestoc_breadcrumb",
+      "description": "Get the ancestry breadcrumb path of a TOC node. Required: product-id, job-id, node-id. Returns array of TocNode.",
+      "method": "GET",
+      "path": "/codesToc/breadcrumb",
+      "no_auth": true,
+      "params": [
+        {
+          "name": "product-id",
+          "wire_name": "productId",
+          "type": "int",
+          "location": "query",
+          "description": "Product id",
+          "required": true
+        },
+        {
+          "name": "job-id",
+          "wire_name": "jobId",
+          "type": "int",
+          "location": "query",
+          "description": "Codification job id",
+          "required": true
+        },
+        {
+          "name": "node-id",
+          "wire_name": "nodeId",
+          "type": "string",
+          "location": "query",
+          "description": "TOC node id",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "codestoc_children",
+      "description": "List the child TOC nodes of a node (use nodeId=productId for the root). Required: product-id, job-id, node-id. Returns array of TocNode.",
+      "method": "GET",
+      "path": "/codesToc/children",
+      "no_auth": true,
+      "params": [
+        {
+          "name": "product-id",
+          "wire_name": "productId",
+          "type": "int",
+          "location": "query",
+          "description": "Product id",
+          "required": true
+        },
+        {
+          "name": "job-id",
+          "wire_name": "jobId",
+          "type": "int",
+          "location": "query",
+          "description": "Codification job id",
+          "required": true
+        },
+        {
+          "name": "node-id",
+          "wire_name": "nodeId",
+          "type": "string",
+          "location": "query",
+          "description": "TOC node id (use the product id for the root)",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "content_get",
+      "description": "Get the content chunk for a TOC node (Docs[] of section HTML). Required: product-id, job-id, node-id. Returns the CodesContent.",
+      "method": "GET",
+      "path": "/CodesContent",
+      "no_auth": true,
+      "params": [
+        {
+          "name": "product-id",
+          "wire_name": "productId",
+          "type": "int",
+          "location": "query",
+          "description": "Product id",
+          "required": true
+        },
+        {
+          "name": "job-id",
+          "wire_name": "jobId",
+          "type": "int",
+          "location": "query",
+          "description": "Codification job id",
+          "required": true
+        },
+        {
+          "name": "node-id",
+          "wire_name": "nodeId",
+          "type": "string",
+          "location": "query",
+          "description": "TOC node id",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "products_by-client",
+      "description": "List products for a municipality by client id. Required: clientId. Returns array of Product.",
+      "method": "GET",
+      "path": "/Products/clientId/{clientId}",
+      "no_auth": true,
+      "params": [
+        {
+          "name": "clientId",
+          "type": "int",
+          "location": "path",
+          "description": "Municipality client id",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "products_by-name",
+      "description": "Resolve a product by client id and product name. Required: client-id, product-name. Returns the Product.",
+      "method": "GET",
+      "path": "/Products/name",
+      "no_auth": true,
+      "params": [
+        {
+          "name": "client-id",
+          "wire_name": "clientId",
+          "type": "int",
+          "location": "query",
+          "description": "Municipality client id",
+          "required": true
+        },
+        {
+          "name": "product-name",
+          "wire_name": "productName",
+          "type": "string",
+          "location": "query",
+          "description": "Product name (e.g. code of ordinances)",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "states_by-abbr",
+      "description": "Get a single state by two-letter abbreviation. Required: state-abbr. Returns the State.",
+      "method": "GET",
+      "path": "/States/abbr",
+      "no_auth": true,
+      "params": [
+        {
+          "name": "state-abbr",
+          "wire_name": "stateAbbr",
+          "type": "string",
+          "location": "query",
+          "description": "Two-letter state abbreviation (e.g. GA, FL, TX)",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "states_list",
+      "description": "List all states with Municode-hosted codes. Returns array of State.",
+      "method": "GET",
+      "path": "/States",
+      "no_auth": true,
+      "params": []
+    },
+    {
+      "name": "versions_latest",
+      "description": "Get the latest codification job (version) for a product. Required: productId. Returns the Job.",
+      "method": "GET",
+      "path": "/Jobs/latest/{productId}",
+      "no_auth": true,
+      "params": [
+        {
+          "name": "productId",
+          "type": "int",
+          "location": "path",
+          "description": "Product id",
+          "required": true
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,275 @@
+name: municode
+description: "Municode CLI — browse, read, search, sync, and analyze US municipal codes and ordinances"
+version: "0.1.0"
+base_url: "https://api.municode.com"
+category: government
+health_check_path: "/States"
+http_transport: standard
+required_headers:
+  - name: User-Agent
+    value: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+  - name: Referer
+    value: "https://library.municode.com/"
+
+auth:
+  type: none
+
+config:
+  format: toml
+  path: "~/.config/municode-pp-cli/config.toml"
+
+resources:
+  states:
+    description: "US states available in Municode"
+    endpoints:
+      list:
+        method: GET
+        path: "/States"
+        description: "List all states with Municode-hosted codes"
+        example: "  municode-pp-cli states list"
+        response:
+          type: array
+          item: State
+      by-abbr:
+        method: GET
+        path: "/States/abbr"
+        description: "Get a single state by two-letter abbreviation"
+        example: "  municode-pp-cli states by-abbr --state-abbr GA"
+        happy_args: "--state-abbr=GA"
+        params:
+          - name: stateAbbr
+            flag_name: state-abbr
+            type: string
+            required: true
+            description: "Two-letter state abbreviation (e.g. GA, FL, TX)"
+        response:
+          type: object
+          item: State
+
+  clients:
+    description: "Municipalities (clients) hosted on Municode"
+    endpoints:
+      by-state:
+        method: GET
+        path: "/Clients/stateAbbr"
+        description: "List all municipalities in a state"
+        example: "  municode-pp-cli clients by-state --state-abbr GA"
+        happy_args: "--state-abbr=GA"
+        params:
+          - name: stateAbbr
+            flag_name: state-abbr
+            type: string
+            required: true
+            description: "Two-letter state abbreviation"
+        response:
+          type: array
+          item: Client
+      by-name:
+        method: GET
+        path: "/Clients/name"
+        description: "Resolve a municipality by name and state"
+        example: "  municode-pp-cli clients by-name --name atlanta --state-abbr GA"
+        happy_args: "--name=atlanta;--state-abbr=GA"
+        params:
+          - name: clientName
+            flag_name: name
+            type: string
+            required: true
+            description: "Municipality name (e.g. atlanta, savannah)"
+          - name: stateAbbr
+            flag_name: state-abbr
+            type: string
+            required: true
+            description: "Two-letter state abbreviation"
+        response:
+          type: object
+          item: Client
+
+  products:
+    description: "Publications (Code of Ordinances, charters) for a municipality"
+    endpoints:
+      by-client:
+        method: GET
+        path: "/Products/clientId/{clientId}"
+        description: "List products for a municipality by client id"
+        example: "  municode-pp-cli products by-client 1093"
+        happy_args: "clientId=1093"
+        params:
+          - name: clientId
+            type: int
+            required: true
+            positional: true
+            description: "Municipality client id"
+        response:
+          type: array
+          item: Product
+      by-name:
+        method: GET
+        path: "/Products/name"
+        description: "Resolve a product by client id and product name"
+        example: "  municode-pp-cli products by-name --client-id 1093 --product-name 'code of ordinances'"
+        happy_args: "--client-id=1093;--product-name=code of ordinances"
+        params:
+          - name: clientId
+            flag_name: client-id
+            type: int
+            required: true
+            description: "Municipality client id"
+          - name: productName
+            flag_name: product-name
+            type: string
+            required: true
+            description: "Product name (e.g. code of ordinances)"
+        response:
+          type: object
+          item: Product
+
+  versions:
+    description: "Codification jobs (dated versions of a publication)"
+    endpoints:
+      latest:
+        method: GET
+        path: "/Jobs/latest/{productId}"
+        description: "Get the latest codification job (version) for a product"
+        example: "  municode-pp-cli jobs latest 10376"
+        happy_args: "productId=10376"
+        params:
+          - name: productId
+            type: int
+            required: true
+            positional: true
+            description: "Product id"
+        response:
+          type: object
+          item: Job
+
+  codestoc:
+    description: "Code table-of-contents tree navigation"
+    endpoints:
+      children:
+        method: GET
+        path: "/codesToc/children"
+        description: "List the child TOC nodes of a node (use nodeId=productId for the root)"
+        example: "  municode-pp-cli codestoc children --product-id 10376 --job-id 487860 --node-id 10376"
+        happy_args: "--product-id=10376;--job-id=487860;--node-id=10376"
+        params:
+          - name: productId
+            flag_name: product-id
+            type: int
+            required: true
+            description: "Product id"
+          - name: jobId
+            flag_name: job-id
+            type: int
+            required: true
+            description: "Codification job id"
+          - name: nodeId
+            flag_name: node-id
+            type: string
+            required: true
+            description: "TOC node id (use the product id for the root)"
+        response:
+          type: array
+          item: TocNode
+      breadcrumb:
+        method: GET
+        path: "/codesToc/breadcrumb"
+        description: "Get the ancestry breadcrumb path of a TOC node"
+        example: "  municode-pp-cli codestoc breadcrumb --product-id 10376 --job-id 487860 --node-id PTIICOORENOR_CH1GEPR"
+        happy_args: "--product-id=10376;--job-id=487860;--node-id=PTIICOORENOR_CH1GEPR"
+        params:
+          - name: productId
+            flag_name: product-id
+            type: int
+            required: true
+            description: "Product id"
+          - name: jobId
+            flag_name: job-id
+            type: int
+            required: true
+            description: "Codification job id"
+          - name: nodeId
+            flag_name: node-id
+            type: string
+            required: true
+            description: "TOC node id"
+        response:
+          type: array
+          item: TocNode
+
+  content:
+    description: "Section content (HTML chunks) of a code"
+    endpoints:
+      get:
+        method: GET
+        path: "/CodesContent"
+        description: "Get the content chunk for a TOC node (Docs[] of section HTML)"
+        example: "  municode-pp-cli content get --product-id 10376 --job-id 487860 --node-id PTIICOORENOR_CH1GEPR"
+        happy_args: "--product-id=10376;--job-id=487860;--node-id=PTIICOORENOR_CH1GEPR"
+        params:
+          - name: productId
+            flag_name: product-id
+            type: int
+            required: true
+            description: "Product id"
+          - name: jobId
+            flag_name: job-id
+            type: int
+            required: true
+            description: "Codification job id"
+          - name: nodeId
+            flag_name: node-id
+            type: string
+            required: true
+            description: "TOC node id"
+        response:
+          type: object
+          item: CodesContent
+
+types:
+  State:
+    fields:
+      - name: StateID
+        type: int
+      - name: StateName
+        type: string
+      - name: StateAbbreviation
+        type: string
+  Client:
+    fields:
+      - name: ClientID
+        type: int
+      - name: ClientName
+        type: string
+      - name: City
+        type: string
+      - name: ZipCode
+        type: string
+      - name: Address
+        type: string
+      - name: Website
+        type: string
+  Product:
+    fields:
+      - name: ProductID
+        type: int
+      - name: ProductName
+        type: string
+  Job:
+    fields:
+      - name: Id
+        type: int
+  TocNode:
+    fields:
+      - name: Id
+        type: string
+      - name: Heading
+        type: string
+  CodesContent:
+    fields:
+      - name: Id
+        type: string
+  SearchResponse:
+    fields:
+      - name: NumberOfHits
+        type: int

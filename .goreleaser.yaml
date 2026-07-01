@@ -1,0 +1,51 @@
+version: 2
+project_name: municode-pp-cli
+changelog:
+  disable: true
+builds:
+  - id: municode-pp-cli
+    main: ./cmd/municode-pp-cli
+    binary: municode-pp-cli
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w -X municode-pp-cli/internal/cli.version={{ .Version }}
+    targets:
+      - darwin_amd64
+      - darwin_arm64
+      - linux_amd64
+      - linux_arm64
+      - windows_amd64
+      - windows_arm64
+  - id: municode-pp-mcp
+    main: ./cmd/municode-pp-mcp
+    binary: municode-pp-mcp
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
+    targets:
+      - darwin_amd64
+      - darwin_arm64
+      - linux_amd64
+      - linux_arm64
+      - windows_amd64
+      - windows_arm64
+archives:
+  - formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+checksum:
+  name_template: checksums.txt
+brews:
+  - name: municode-pp-cli
+    repository:
+      owner: knitsecurity
+      name: homebrew-tap
+    homepage: "https://github.com/knitsecurity/municode-pp-cli"
+    description: "Every Municode feature, plus an offline local mirror, real full-text search, change tracking, and citation tooling no other Municode tool has."
+    install: |
+      bin.install "municode-pp-cli"
+      bin.install "municode-pp-mcp"

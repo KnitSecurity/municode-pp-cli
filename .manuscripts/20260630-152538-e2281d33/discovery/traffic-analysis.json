@@ -1,0 +1,6 @@
+{
+  "reachability": { "mode": "standard_http", "needs_browser_capture": false, "needs_clearance_cookie": false },
+  "primary_api_base": "https://api.municode.com",
+  "frontend_proxy_base": "https://library.municode.com/api",
+  "notes": "Net-log capture (Chromium). browser-use could not launch its managed browser on this headless host; captured via Chromium --log-net-log instead. Frontend uses a same-origin /api proxy; public api.municode.com serves the same data unauthenticated and is the CLI target. Full-text /search is a paid MuniPro feature: HasMuniproSearch=false, frontend /api/search=401, public /search returns NumberOfHits:0 for free tier."
+}

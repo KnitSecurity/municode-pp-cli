@@ -1,0 +1,295 @@
+{
+  "api_name": "municode",
+  "novelty_score": 0,
+  "alternatives": [
+    {
+      "name": "noclocks/municode-scraper",
+      "url": "https://github.com/noclocks/municode-scraper",
+      "language": "Python",
+      "install_method": "",
+      "stars": 31,
+      "last_updated": "",
+      "command_count": 0,
+      "has_json_output": false,
+      "has_auth_support": false
+    },
+    {
+      "name": "TIDYAPP/open-legal-codes",
+      "url": "https://github.com/TIDYAPP/open-legal-codes",
+      "language": "TypeScript",
+      "install_method": "",
+      "stars": 0,
+      "last_updated": "",
+      "command_count": 0,
+      "has_json_output": false,
+      "has_auth_support": false
+    },
+    {
+      "name": "RoryStolzenberg/municode-dump",
+      "url": "https://github.com/RoryStolzenberg/municode-dump",
+      "language": "JavaScript",
+      "install_method": "",
+      "stars": 0,
+      "last_updated": "",
+      "command_count": 0,
+      "has_json_output": false,
+      "has_auth_support": false
+    },
+    {
+      "name": "wcurrangroome/municoder",
+      "url": "https://github.com/wcurrangroome/municoder",
+      "language": "R",
+      "install_method": "",
+      "stars": 3,
+      "last_updated": "",
+      "command_count": 0,
+      "has_json_output": false,
+      "has_auth_support": false
+    },
+    {
+      "name": "Skatterbrainz/MunicipalMCP",
+      "url": "https://github.com/Skatterbrainz/MunicipalMCP",
+      "language": "Python",
+      "install_method": "",
+      "stars": 0,
+      "last_updated": "",
+      "command_count": 7,
+      "has_json_output": false,
+      "has_auth_support": false
+    },
+    {
+      "name": "opengovfoundation/lasvegas-parser",
+      "url": "https://github.com/opengovfoundation/lasvegas-parser",
+      "language": "PHP",
+      "install_method": "",
+      "stars": 2,
+      "last_updated": "",
+      "command_count": 0,
+      "has_json_output": false,
+      "has_auth_support": false
+    }
+  ],
+  "gaps": [],
+  "patterns": [],
+  "recommendation": "proceed",
+  "researched_at": "2026-06-30T21:40:00Z",
+  "novel_features": [
+    {
+      "name": "Full offline AI-referenceable clone",
+      "command": "clone",
+      "description": "Pull a municipality's entire code into a local store and an AI-ready Markdown/text tree in one command, so an agent can reference it offline with no further API calls.",
+      "rationale": "Combines a full TOC+content sync, FTS indexing, and an ordinance-history lineage index into one local artifact that no single API call or existing tool produces.",
+      "example": "municode-pp-cli clone \"Atlanta, GA\" --export ./atlanta-code --agent",
+      "why_it_matters": "Reach for this first when an agent needs to read or search a whole city's code repeatedly without hitting the live API each time.",
+      "group": "Local state that compounds"
+    },
+    {
+      "name": "Clone-vs-live drift diff",
+      "command": "diff",
+      "description": "See which sections of a city's code changed in the live code since you cloned it: added, removed, or reworded.",
+      "rationale": "Compares your local clone against the current upstream code to surface section-level drift that no single API call reports.",
+      "example": "municode-pp-cli diff \"Atlanta, GA\" --agent",
+      "why_it_matters": "Reach for this to detect exactly what changed in a code since you last cloned it.",
+      "group": "Local state that compounds"
+    },
+    {
+      "name": "Cross-city topic comparison",
+      "command": "compare",
+      "description": "Lay one topic (e.g. short-term rentals) side by side across several cities, aligning each city's controlling section.",
+      "rationale": "Requires a full-text join across documents from multiple synced municipalities that exists only in the local store.",
+      "example": "municode-pp-cli compare \"short-term rental\" --city \"Atlanta, GA\" --city \"Savannah, GA\" --agent",
+      "why_it_matters": "Reach for this to compare how different jurisdictions regulate the same activity in one shot.",
+      "group": "Cross-city intelligence"
+    },
+    {
+      "name": "Ordinance-history extraction",
+      "command": "history",
+      "description": "Turn a section's '(Ord. No. ..., date)' history annotations into structured ordinance / section / date rows.",
+      "rationale": "Parses a municipal-code-specific content pattern out of stored section text; nothing upstream exposes it as data.",
+      "example": "municode-pp-cli history \"Atlanta, GA\" --section 16-28.001 --agent",
+      "why_it_matters": "Reach for this to cite the enacting ordinances for a section, or invert with --by-ordinance to see everything an ordinance changed.",
+      "group": "Legal-content extraction"
+    },
+    {
+      "name": "Intra-code cross-reference graph",
+      "command": "xref",
+      "description": "List what a section cites and what cites it, building an inbound/outbound reference graph for a city's code.",
+      "rationale": "Requires extracting citation references from stored text and joining them to the TOC tree in the local store.",
+      "example": "municode-pp-cli xref \"Atlanta, GA\" --section 16-28.001 --inbound --agent",
+      "why_it_matters": "Reach for this to trace how sections of a code reference each other before relying on a single section in isolation.",
+      "group": "Legal-content extraction"
+    },
+    {
+      "name": "Defined-term lookup",
+      "command": "defs",
+      "description": "Return the one authoritative definition of a term from a code's Definitions sections, with its citation.",
+      "rationale": "Scopes FTS to Definitions-family headings in the local store and extracts the defining clause, not a hit list.",
+      "example": "municode-pp-cli defs \"Atlanta, GA\" \"dwelling unit\" --agent",
+      "why_it_matters": "Reach for this when you need the controlling definition of a term, not general full-text hits.",
+      "group": "Legal-content extraction"
+    },
+    {
+      "name": "Mirror freshness check",
+      "command": "stale",
+      "description": "List synced codes whose upstream codification is newer than your local copy, so you know which mirrors to re-sync.",
+      "rationale": "Compares the local sync cursor against the upstream latest job per municipality — a cross-entity check, not one API call's output.",
+      "example": "municode-pp-cli stale --agent",
+      "why_it_matters": "Reach for this to find out-of-date local mirrors before trusting or publishing their text.",
+      "group": "Local state that compounds"
+    }
+  ],
+  "novel_features_built": [
+    {
+      "name": "Full offline AI-referenceable clone",
+      "command": "clone",
+      "description": "Pull a municipality's entire code into a local store and an AI-ready Markdown/text tree in one command, so an agent can reference it offline with no further API calls.",
+      "rationale": "Combines a full TOC+content sync, FTS indexing, and an ordinance-history lineage index into one local artifact that no single API call or existing tool produces.",
+      "example": "municode-pp-cli clone \"Atlanta, GA\" --export ./atlanta-code --agent",
+      "why_it_matters": "Reach for this first when an agent needs to read or search a whole city's code repeatedly without hitting the live API each time.",
+      "group": "Local state that compounds"
+    },
+    {
+      "name": "Clone-vs-live drift diff",
+      "command": "diff",
+      "description": "See which sections of a city's code changed in the live code since you cloned it: added, removed, or reworded.",
+      "rationale": "Compares your local clone against the current upstream code to surface section-level drift that no single API call reports.",
+      "example": "municode-pp-cli diff \"Atlanta, GA\" --agent",
+      "why_it_matters": "Reach for this to detect exactly what changed in a code since you last cloned it.",
+      "group": "Local state that compounds"
+    },
+    {
+      "name": "Cross-city topic comparison",
+      "command": "compare",
+      "description": "Lay one topic (e.g. short-term rentals) side by side across several cities, aligning each city's controlling section.",
+      "rationale": "Requires a full-text join across documents from multiple synced municipalities that exists only in the local store.",
+      "example": "municode-pp-cli compare \"short-term rental\" --city \"Atlanta, GA\" --city \"Savannah, GA\" --agent",
+      "why_it_matters": "Reach for this to compare how different jurisdictions regulate the same activity in one shot.",
+      "group": "Cross-city intelligence"
+    },
+    {
+      "name": "Ordinance-history extraction",
+      "command": "history",
+      "description": "Turn a section's '(Ord. No. ..., date)' history annotations into structured ordinance / section / date rows.",
+      "rationale": "Parses a municipal-code-specific content pattern out of stored section text; nothing upstream exposes it as data.",
+      "example": "municode-pp-cli history \"Atlanta, GA\" --section 16-28.001 --agent",
+      "why_it_matters": "Reach for this to cite the enacting ordinances for a section, or invert with --by-ordinance to see everything an ordinance changed.",
+      "group": "Legal-content extraction"
+    },
+    {
+      "name": "Intra-code cross-reference graph",
+      "command": "xref",
+      "description": "List what a section cites and what cites it, building an inbound/outbound reference graph for a city's code.",
+      "rationale": "Requires extracting citation references from stored text and joining them to the TOC tree in the local store.",
+      "example": "municode-pp-cli xref \"Atlanta, GA\" --section 16-28.001 --inbound --agent",
+      "why_it_matters": "Reach for this to trace how sections of a code reference each other before relying on a single section in isolation.",
+      "group": "Legal-content extraction"
+    },
+    {
+      "name": "Defined-term lookup",
+      "command": "defs",
+      "description": "Return the one authoritative definition of a term from a code's Definitions sections, with its citation.",
+      "rationale": "Scopes FTS to Definitions-family headings in the local store and extracts the defining clause, not a hit list.",
+      "example": "municode-pp-cli defs \"Atlanta, GA\" \"dwelling unit\" --agent",
+      "why_it_matters": "Reach for this when you need the controlling definition of a term, not general full-text hits.",
+      "group": "Legal-content extraction"
+    },
+    {
+      "name": "Mirror freshness check",
+      "command": "stale",
+      "description": "List synced codes whose upstream codification is newer than your local copy, so you know which mirrors to re-sync.",
+      "rationale": "Compares the local sync cursor against the upstream latest job per municipality — a cross-entity check, not one API call's output.",
+      "example": "municode-pp-cli stale --agent",
+      "why_it_matters": "Reach for this to find out-of-date local mirrors before trusting or publishing their text.",
+      "group": "Local state that compounds"
+    }
+  ],
+  "auth": {},
+  "narrative": {
+    "display_name": "Municode",
+    "headline": "Every Municode feature, plus an offline local mirror, real full-text search, change tracking, and citation tooling no other Municode tool has.",
+    "value_prop": "Browse and read 3,300+ US municipal codes from the command line, then clone any city's code into a local SQLite database for offline reading and FTS5 search that works even though Municode's own full-text search is a paid MuniPro feature. On top of that local store it adds clone-vs-live drift detection (diff), side-by-side cross-city topic comparison (compare), structured ordinance-history extraction (history), an intra-code cross-reference graph (xref), and authoritative defined-term lookup (defs).",
+    "auth_narrative": "No authentication required — Municode's public API at api.municode.com serves municipal codes, ordinances, and table-of-contents data to anyone. Note: upstream full-text search is a paid 'MuniPro' tier and returns no results for free/anonymous users, which is exactly why this CLI builds its own local FTS index over cloned content.",
+    "quickstart": [
+      {
+        "command": "municode-pp-cli doctor --dry-run",
+        "comment": "Confirm the CLI and api.municode.com are reachable before anything else."
+      },
+      {
+        "command": "municode-pp-cli resolve \"Atlanta, GA\"",
+        "comment": "Resolve a city name to its addressable code (clientId, productId, latest jobId)."
+      },
+      {
+        "command": "municode-pp-cli toc \"Atlanta, GA\"",
+        "comment": "Browse the code's table of contents to find the chapter you need."
+      },
+      {
+        "command": "municode-pp-cli clone \"Atlanta, GA\"",
+        "comment": "Mirror the whole code into local SQLite so search and the novel commands work offline."
+      },
+      {
+        "command": "municode-pp-cli search \"short-term rental\" --type document",
+        "comment": "Full-text search the cloned code locally — works without the paid MuniPro tier."
+      },
+      {
+        "command": "municode-pp-cli defs \"Atlanta, GA\" \"dwelling unit\"",
+        "comment": "Pull the authoritative definition of a term with its citation."
+      }
+    ],
+    "troubleshoots": [
+      {
+        "symptom": "search returns nothing",
+        "fix": "Run 'municode-pp-cli clone \"\u003cCity, ST\u003e\"' first — search reads the local FTS index, not the paid upstream search."
+      },
+      {
+        "symptom": "a local command says the city is not cloned",
+        "fix": "Run 'municode-pp-cli clone \"\u003cCity, ST\u003e\"' to mirror that city's code before querying it offline."
+      },
+      {
+        "symptom": "city not found by name",
+        "fix": "Use the exact municipality name and two-letter state, e.g. \"St. Petersburg, FL\"; list candidates with 'municode-pp-cli cities --state FL'."
+      },
+      {
+        "symptom": "diff or history shows nothing",
+        "fix": "These read the local store — clone the city first. diff reports changes since you cloned, so a freshly cloned code shows no drift."
+      }
+    ],
+    "when_to_use": "Use this CLI when an agent or user needs to read, search, or analyze the actual text of US municipal codes and ordinances — zoning, building, licensing, definitions — across one or many cities. It is the right tool for offline legal-text research, citation building, comparing how different jurisdictions regulate a topic, and tracking how a code changed between codification supplements.",
+    "anti_triggers": [
+      "Do not use this CLI for federal or state statutes — it only covers municipal/county codes hosted on Municode.",
+      "Do not use it to obtain paid MuniPro full-text search results; the free tier has no upstream search index.",
+      "Do not use it as legal advice or an authoritative legal citation source without verifying against the official adopted code.",
+      "Do not use it for cities not hosted on library.municode.com (many use American Legal, eCode360, or Code Publishing instead)."
+    ],
+    "recipes": [
+      {
+        "title": "Compare a regulation across cities (agent-friendly, narrowed)",
+        "command": "municode-pp-cli compare \"noise ordinance\" --city \"Atlanta, GA\" --city \"Savannah, GA\" --agent --select cities.city,cities.section.citation,cities.section.heading",
+        "explanation": "After cloning both cities, aligns the controlling section per city and narrows the deeply nested response to just city, citation, and heading."
+      },
+      {
+        "title": "Read a section as clean text",
+        "command": "municode-pp-cli read \"Atlanta, GA\" PTIICOORENOR_CH1GEPR --json",
+        "explanation": "Fetches a chapter/section chunk and returns each section's title and HTML-stripped plaintext."
+      },
+      {
+        "title": "Detect what changed since you cloned",
+        "command": "municode-pp-cli diff \"Atlanta, GA\"",
+        "explanation": "Compares your local clone against the current live code and reports added, removed, and reworded sections with citations."
+      },
+      {
+        "title": "Find stale local mirrors",
+        "command": "municode-pp-cli stale",
+        "explanation": "Lists every cloned city whose upstream codification is newer than your local copy so you know what to re-clone."
+      }
+    ],
+    "trigger_phrases": [
+      "look up Atlanta zoning code",
+      "what does the city code say about short-term rentals",
+      "compare noise ordinances across cities",
+      "find the definition of dwelling unit in the municipal code",
+      "clone a municipal code for offline search",
+      "use municode",
+      "run municode"
+    ]
+  }
+}
