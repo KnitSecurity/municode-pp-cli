@@ -186,6 +186,13 @@ See README.md or the bundled SKILL.md for recipes.`,
 	rootCmd.PersistentFlags().Float64Var(&flags.rateLimit, "rate-limit", 0, "Max requests per second (0 to disable)")
 
 	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
+		// Default to a self-contained home (a portable binary-relative directory
+		// if marked, else ~/.municode) unless the user configured a path override.
+		// Keeps config/data/db/clones/cache/state together instead of scattered
+		// across the home directory.
+		if h := cliutil.ResolveDefaultHome(flags.homePath); h != "" {
+			flags.homePath = h
+		}
 		if _, err := cliutil.SetHomeOverride(flags.homePath); err != nil {
 			return err
 		}
@@ -258,6 +265,7 @@ See README.md or the bundled SKILL.md for recipes.`,
 	rootCmd.AddCommand(newTocCmd(flags))
 	rootCmd.AddCommand(newReadCmd(flags))
 	rootCmd.AddCommand(newClonesCmd(flags))
+	rootCmd.AddCommand(newInitCmd(flags))
 	rootCmd.AddCommand(newNovelCloneCmd(flags))
 	rootCmd.AddCommand(newNovelCompareCmd(flags))
 	rootCmd.AddCommand(newNovelDefsCmd(flags))

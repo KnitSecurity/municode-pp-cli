@@ -258,7 +258,7 @@ func newDoctorCmd(flags *rootFlags) *cobra.Command {
 				report["verify_mode"] = "normal operation"
 			}
 
-			report["version"] = version
+			report["version"] = cliutil.ResolveVersion(version)
 
 			if flags.asJSON {
 				if err := printJSONFiltered(cmd.OutOrStdout(), report, flags); err != nil {

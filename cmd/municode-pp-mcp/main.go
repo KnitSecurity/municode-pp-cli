@@ -28,6 +28,13 @@ const (
 var version = "0.0.0-dev"
 
 func main() {
+	// Resolve the same self-contained home the CLI uses (portable binary-relative
+	// dir if marked, else ~/.municode) so the MCP server reads the database and
+	// clones from the same place, unless a path override is configured.
+	if h := cliutil.ResolveDefaultHome(""); h != "" {
+		_, _ = cliutil.SetHomeOverride(h)
+	}
+
 	// s is referenced by the resource-refresh hook, which is installed at
 	// construction time (below) but must call back into the built server after
 	// an in-session `clone` tool runs so the new city appears in resources/list

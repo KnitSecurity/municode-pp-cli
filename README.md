@@ -42,6 +42,36 @@ scoop install poppler   # or: choco install poppler
 
 This is entirely optional. Without it you still get full text from text-based PDFs via the built-in extractor. Neither path reads *scanned/image* PDFs — those are stored as references (metadata + source link) with no text.
 
+## Where files live
+
+Everything the CLI writes — config, the SQLite database, cloned `<city>/` code folders, cache, and state — lives together in **one self-contained directory**, not scattered across your home directory.
+
+By default that directory is **`~/.municode`**:
+
+```
+~/.municode/
+├── config/       config.toml
+├── data/         data.db  +  boulder-co/ , atlanta-ga/ , …   (cloned codes + rules/ + ordinances/)
+├── state/
+└── cache/
+```
+
+Run `municode-pp-cli doctor` to see the resolved paths. You can put this directory anywhere, three ways (highest precedence first):
+
+1. **Per-run:** `municode-pp-cli --home /path/to/dir …`
+2. **Persistent:** `export MUNICODE_HOME="/path/to/dir"` in your shell profile (`~/.zshrc` on macOS, `~/.bashrc` on Linux).
+3. **Portable (install into a directory, everything lives there):** install the binaries into your chosen directory and mark it with `init`:
+
+   ```bash
+   GOBIN="$HOME/municode" go install github.com/KnitSecurity/municode-pp-cli/cmd/municode-pp-cli@latest
+   GOBIN="$HOME/municode" go install github.com/KnitSecurity/municode-pp-cli/cmd/municode-pp-mcp@latest
+   "$HOME/municode/municode-pp-cli" init      # drops a .municode-home marker
+   ```
+
+   After that, running `~/municode/municode-pp-cli` keeps all its files under `~/municode` automatically — no environment variable, nothing in your home directory.
+
+Fine-grained overrides still work: `MUNICODE_DATA_DIR`, `MUNICODE_CONFIG_DIR`, etc., and the standard `XDG_*` variables take precedence over the `~/.municode` default when set.
+
 ## Use with an MCP client (Claude Desktop, Claude Code, …)
 
 After installing `municode-pp-mcp` (see [Install](#install)), point your MCP host at it. **Use the binary's absolute path** — `go install` places it in `~/go/bin`, which is usually not on the `PATH` the host uses to launch servers, so a bare `municode-pp-mcp` shows as *not connected*. Find it with `command -v municode-pp-mcp`.
