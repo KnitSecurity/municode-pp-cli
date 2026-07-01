@@ -63,6 +63,10 @@ func mcChunkParent(docs []mcDoc, i int) string {
 // the number of documents stored.
 func mcSyncCode(ctx context.Context, c *client.Client, db *store.Store, res *mcResolved, maxNodes int, progress func(string)) (int, bool, error) {
 	covered := map[string]bool{}
+	// storedIDs tracks distinct documents written so the returned count matches
+	// the row count reported by `clones`. Overlapping chunk groups can upsert the
+	// same section more than once; those re-writes must not inflate the total.
+	storedIDs := map[string]bool{}
 	stored := 0
 	partial := false
 	// BFS queue of node ids; start at the root (nodeId == productId).
@@ -108,7 +112,8 @@ func mcSyncCode(ctx context.Context, c *client.Client, db *store.Store, res *mcR
 			}
 		}
 
-		// Skip content fetch if this node's content is already covered.
+		// Skip the content fetch only when we already have this node's body
+		// (see covered semantics below).
 		if covered[node] {
 			continue
 		}
@@ -128,11 +133,28 @@ func mcSyncCode(ctx context.Context, c *client.Client, db *store.Store, res *mcR
 			return stored, partial, fmt.Errorf("fetching content at %s: %w", node, err)
 		}
 		for i, d := range docs {
-			covered[d.Id] = true
-			text := mcHTMLToText(d.Content)
-			title := mcHTMLToText(d.TitleHtml)
-			if strings.TrimSpace(text) == "" && strings.TrimSpace(title) == "" {
+			if d.Id == "" {
 				continue
+			}
+			text := mcHTMLToText(d.Content)
+			// Municode chunks a large subtree into a "chunk group": the requested
+			// node's body is inlined, but its descendants come back as
+			// content-less pointer docs (Content=null) whose real bodies live in
+			// their own, deeper chunk-group fetch. A pointer must NOT be marked
+			// covered — doing so is what suppressed the deeper fetch and left
+			// sections as stubs — and we skip storing it, because this same node
+			// is (or will be) fetched directly, which returns its body. Marking
+			// covered only for content-bearing docs also stops the deeper fetch
+			// from redundantly re-fetching a section already inlined in its group.
+			if text == "" {
+				continue
+			}
+			covered[d.Id] = true
+			// Heading: prefer the HTML title, then the plain Title field (pointer
+			// docs and some chunk docs carry only the latter).
+			title := mcHTMLToText(d.TitleHtml)
+			if title == "" {
+				title = strings.TrimSpace(d.Title)
 			}
 			// Depth: prefer the API's NodeDepth; fall back to the BFS depth.
 			depth := d.NodeDepth
@@ -168,7 +190,10 @@ func mcSyncCode(ctx context.Context, c *client.Client, db *store.Store, res *mcR
 			if err := db.Upsert(mcDocType, mcStoreID(res.ClientID, d.Id), payload); err != nil {
 				return stored, partial, fmt.Errorf("storing %s: %w", d.Id, err)
 			}
-			stored++
+			if !storedIDs[d.Id] {
+				storedIDs[d.Id] = true
+				stored++
+			}
 		}
 		if progress != nil && stored%200 == 0 && stored > 0 {
 			progress(fmt.Sprintf("stored %d sections...", stored))

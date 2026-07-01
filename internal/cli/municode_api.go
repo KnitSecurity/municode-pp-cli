@@ -57,6 +57,7 @@ type mcTocNode struct {
 type mcDoc struct {
 	Id        string `json:"Id"`
 	TitleHtml string `json:"TitleHtml"`
+	Title     string `json:"Title"`
 	Content   string `json:"Content"`
 	NodeDepth int    `json:"NodeDepth"`
 }
