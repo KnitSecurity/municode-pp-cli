@@ -1,7 +1,7 @@
 # Reprint guard: document the local-clone / MCP-resource surface
 
 **Targets (generated):** `README.md`, `SKILL.md`
-**Companion (hand-authored, reprint-safe):** `docs/local-clone-mcp.md`
+**Companions (hand-authored, reprint-safe):** `docs/local-clone-mcp.md`, `docs/mcp-manual.md` (plain-language MCP user manual)
 **Feature:** local-clone offline + MCP resources (plan `docs/plans/2026-06-30-001-feat-local-clone-mcp-plan.md`)
 
 ## Intent
@@ -25,7 +25,7 @@ survives reprint on its own — the generated docs only need pointers to it.
 - In the Claude Desktop / MCP section, add a paragraph: call `context` first;
   the server exposes the clone as resources `municode://clones` and
   `municode://clone/{clientId}/{nodeId}` (offline reads, mid-session refresh);
-  link `docs/local-clone-mcp.md`.
+  link the MCP user manual `docs/mcp-manual.md` and `docs/local-clone-mcp.md`.
 
 **SKILL.md**
 - Same `clones` bullet in "Local state that compounds".

@@ -90,7 +90,7 @@ To install:
 
 Requires Claude Desktop 1.0.0 or later. Pre-built bundles ship for macOS Apple Silicon (`darwin-arm64`) and Windows (`amd64`, `arm64`); for other platforms, use the manual config below.
 
-Once connected, call the `context` tool first — it front-loads the clone-first workflow and the offline-vs-live tool split. The server also exposes the local clone as MCP **resources**: `municode://clones` (inventory) and `municode://clone/{clientId}/{nodeId}` (one section as plain text). Resource reads are offline, and a city cloned mid-session appears in `resources/list` without a restart. See [docs/local-clone-mcp.md](docs/local-clone-mcp.md).
+Once connected, call the `context` tool first — it front-loads the clone-first workflow and the offline-vs-live tool split. The server also exposes the local clone as MCP **resources**: `municode://clones` (inventory) and `municode://clone/{clientId}/{nodeId}` (one section as plain text). Resource reads are offline, and a city cloned mid-session appears in `resources/list` without a restart. See the **[MCP User Manual](docs/mcp-manual.md)** for a plain-language guide, and [docs/local-clone-mcp.md](docs/local-clone-mcp.md) for the offline workflow detail.
 
 <details>
 <summary>Manual JSON config (advanced)</summary>

@@ -103,7 +103,8 @@ municode-pp-cli clone "Boulder, CO"   # re-run to refresh the mirror
 ## MCP workflow
 
 The companion MCP server (`municode-pp-mcp`) exposes the same clone offline to an
-agent, in two forms.
+agent, in two forms. For a plain-language, human-facing guide to installing,
+connecting, and driving the MCP server, see [mcp-manual.md](mcp-manual.md).
 
 ### Tools
 
