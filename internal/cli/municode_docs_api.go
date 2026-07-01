@@ -108,6 +108,67 @@ func mcMuniDocPDFURL(productID int, nodeID string) string {
 	return fmt.Sprintf("%s/munidocDownload/%d/%s/pdf", mcMuniDocsFuncBase, productID, nodeID)
 }
 
+// --- Ordinances (the code product's OrdBank; PDFs organized by adoption year) ---
+
+// mcOrdinanceMeta is the metadata for a single ordinance.
+type mcOrdinanceMeta struct {
+	Id           int    `json:"Id"`
+	Title        string `json:"Title"`
+	Description  string `json:"Description"`
+	AdoptionDate string `json:"AdoptionDate"`
+}
+
+// mcOrdinanceYears returns the year folders under a code product's ordinances
+// tree (the OrdBank root's direct children).
+func mcOrdinanceYears(ctx context.Context, c *client.Client, productID int) ([]mcMuniDocNode, error) {
+	raw, err := c.Get(ctx, "/ordinancesToc", map[string]string{"productId": strconv.Itoa(productID)})
+	if err != nil {
+		return nil, err
+	}
+	var root struct {
+		Children []mcMuniDocNode `json:"Children"`
+	}
+	if err := json.Unmarshal(raw, &root); err != nil {
+		return nil, err
+	}
+	return root.Children, nil
+}
+
+// mcOrdinancesInYear lists the ordinance leaves under a year node.
+func mcOrdinancesInYear(ctx context.Context, c *client.Client, productID int, yearNodeID string) ([]mcMuniDocNode, error) {
+	raw, err := c.Get(ctx, "/ordinancesToc/children", map[string]string{
+		"productId": strconv.Itoa(productID),
+		"nodeId":    yearNodeID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	var nodes []mcMuniDocNode
+	_ = json.Unmarshal(raw, &nodes)
+	return nodes, nil
+}
+
+// mcOrdinanceMetadata fetches an ordinance's title/subject/adoption date.
+func mcOrdinanceMetadata(ctx context.Context, c *client.Client, productID int, ordID string) (*mcOrdinanceMeta, error) {
+	raw, err := c.Get(ctx, "/CoreContent/Ordinances", map[string]string{
+		"productId": strconv.Itoa(productID),
+		"nodeId":    ordID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	var m mcOrdinanceMeta
+	if err := json.Unmarshal(raw, &m); err != nil {
+		return nil, err
+	}
+	return &m, nil
+}
+
+// mcOrdinancePDFURL builds the public PDF download URL for an ordinance.
+func mcOrdinancePDFURL(productID int, ordID string) string {
+	return fmt.Sprintf("%s/ordinanceDownload/%d/%s/pdf", mcMuniDocsFuncBase, productID, ordID)
+}
+
 // mcFetchPDF downloads PDF bytes from an absolute URL (the Azure Functions host,
 // not the API base) with a small bounded retry so a transient blip doesn't drop
 // a document mid-clone. Honors ctx cancellation.

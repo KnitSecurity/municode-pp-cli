@@ -77,7 +77,7 @@ func TestMcExportRulesMarkdown(t *testing.T) {
 			SourceURL: "https://func/munidocDownload/31060/R2/pdf",
 			Extractor: extractorNone, TextExtracted: boolPtr(false)},
 	}
-	n, err := mcExportRulesMarkdown(dir, docs)
+	n, err := mcExportPDFDocsMarkdown(dir, docs)
 	if err != nil {
 		t.Fatalf("export rules: %v", err)
 	}

@@ -40,14 +40,18 @@ type mcStoredDoc struct {
 	SourceFile    string `json:"source_file,omitempty"`    // OriginalFileName
 	Extractor     string `json:"extractor,omitempty"`      // pdftotext | go | none
 	TextExtracted *bool  `json:"text_extracted,omitempty"` // false when only a scan (no text)
-	DocDate       string `json:"doc_date,omitempty"`       // SortDate
+	DocDate       string `json:"doc_date,omitempty"`       // SortDate / AdoptionDate
 	Breadcrumb    string `json:"breadcrumb,omitempty"`     // "Rules > City Manager/Emergency"
+	Subject       string `json:"subject,omitempty"`        // ordinance description/subject
 }
 
-// mcRuleDocType is the resource_type for Rules PDFs, distinct from HTML code
-// sections ("document") so the two can be listed/read separately while sharing
-// the same store and FTS index.
-const mcRuleDocType = "munidoc"
+// Resource types for PDF-backed documents, distinct from HTML code sections
+// ("document") so each can be listed/read separately while sharing the store and
+// FTS index.
+const (
+	mcRuleDocType = "munidoc"
+	mcOrdDocType  = "ordinance"
+)
 
 func mcStoreID(clientID int, docID string) string {
 	return strconv.Itoa(clientID) + ":" + docID
@@ -341,6 +345,125 @@ func mcStoreRuleDoc(ctx context.Context, c *client.Client, db *store.Store, res 
 func mcMuniDocLibraryURL(res *mcResolved, nodeID string) string {
 	return fmt.Sprintf("https://library.municode.com/%s/%s/munidocs/munidocs?nodeId=%s",
 		strings.ToLower(res.StateAbbr), mcSlug(res.ClientName), nodeID)
+}
+
+// mcSyncOrdinances walks the code product's ordinances (OrdBank) tree — year
+// folders, each holding ordinance PDFs — downloads and text-scans each, and
+// stores it as an ordinance resource. The ordinance description (subject) is
+// stored even when the PDF is a scan, so ordinances stay searchable by subject.
+// Returns (stored, partial, error).
+func mcSyncOrdinances(ctx context.Context, c *client.Client, db *store.Store, res *mcResolved, timeout time.Duration, progress func(string)) (int, bool, error) {
+	years, err := mcOrdinanceYears(ctx, c, res.ProductID)
+	if err != nil {
+		if ctx.Err() != nil {
+			return 0, true, nil
+		}
+		return 0, false, fmt.Errorf("listing ordinance years: %w", err)
+	}
+	stored := 0
+	skipped := 0
+	for _, year := range years {
+		if ctx.Err() != nil {
+			return stored, true, nil
+		}
+		ords, err := mcOrdinancesInYear(ctx, c, res.ProductID, year.Id)
+		if err != nil {
+			if ctx.Err() != nil {
+				return stored, true, nil
+			}
+			return stored, false, fmt.Errorf("listing ordinances for %s: %w", year.Heading, err)
+		}
+		for _, ord := range ords {
+			if ord.Id == "" || ord.Data.IsFolder {
+				continue
+			}
+			ok, err := mcStoreOrdinance(ctx, c, db, res, ord, year.Heading, timeout)
+			if err != nil {
+				if ctx.Err() != nil {
+					return stored, true, nil
+				}
+				return stored, false, err
+			}
+			if ok {
+				stored++
+			} else {
+				skipped++
+			}
+			if progress != nil && stored%25 == 0 && stored > 0 {
+				progress(fmt.Sprintf("stored %d ordinances...", stored))
+			}
+		}
+	}
+	if progress != nil && skipped > 0 {
+		progress(fmt.Sprintf("ordinances: %d stored, %d skipped (download failures)", stored, skipped))
+	}
+	return stored, false, nil
+}
+
+// mcStoreOrdinance fetches one ordinance's metadata + PDF, extracts text, and
+// stores it. ok=false (nil error) means the PDF download failed (skip, re-clone
+// retries).
+func mcStoreOrdinance(ctx context.Context, c *client.Client, db *store.Store, res *mcResolved, node mcMuniDocNode, year string, timeout time.Duration) (bool, error) {
+	meta, err := mcOrdinanceMetadata(ctx, c, res.ProductID, node.Id)
+	if err != nil {
+		if ctx.Err() != nil {
+			return false, ctx.Err()
+		}
+		meta = &mcOrdinanceMeta{Title: node.Heading} // metadata blip: fall back to the tree heading
+	}
+	url := mcOrdinancePDFURL(res.ProductID, node.Id)
+	pdfBytes, err := mcFetchPDF(ctx, url, timeout)
+	if err != nil {
+		if ctx.Err() != nil {
+			return false, ctx.Err()
+		}
+		return false, nil // download failed: skip (non-fatal)
+	}
+	text, extractor := mcExtractPDF(ctx, pdfBytes)
+	extracted := text != ""
+	title := meta.Title
+	if title == "" {
+		title = node.Heading
+	}
+	rec := mcStoredDoc{
+		DocID:         node.Id,
+		NodeID:        node.Id,
+		ClientID:      res.ClientID,
+		Client:        res.ClientName,
+		State:         res.StateAbbr,
+		ProductID:     res.ProductID,
+		Title:         title,
+		Text:          text,
+		Subject:       meta.Description,
+		Citation:      mcOrdinanceLibraryURL(res, node.Id),
+		SourceURL:     url,
+		Extractor:     extractor,
+		TextExtracted: &extracted,
+		DocDate:       meta.AdoptionDate,
+		Breadcrumb:    "Ordinances > " + year,
+	}
+	payload, err := json.Marshal(rec)
+	if err != nil {
+		return false, err
+	}
+	if err := db.Upsert(mcOrdDocType, mcStoreID(res.ClientID, node.Id), payload); err != nil {
+		return false, fmt.Errorf("storing ordinance %s: %w", node.Id, err)
+	}
+	return true, nil
+}
+
+// mcOrdinanceLibraryURL builds the public library permalink for an ordinance.
+func mcOrdinanceLibraryURL(res *mcResolved, nodeID string) string {
+	return fmt.Sprintf("https://library.municode.com/%s/%s/ordinances/ordinances?nodeId=%s",
+		strings.ToLower(res.StateAbbr), mcSlug(res.ClientName), nodeID)
+}
+
+// mcLoadCityOrdinances returns all stored ordinances for one municipality,
+// newest adoption date first.
+func mcLoadCityOrdinances(ctx context.Context, db *store.Store, clientID int) ([]mcStoredDoc, error) {
+	return mcScanDocs(ctx, db, `SELECT data FROM resources WHERE resource_type = ? AND json_extract(data,'$.client_id') = ?
+		ORDER BY json_extract(data,'$.doc_date') DESC`,
+		mcOrdDocType, clientID)
 }
 
 // mcReadLocalSections returns the stored sections for a node from the clone:

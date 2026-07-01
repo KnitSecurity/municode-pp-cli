@@ -53,22 +53,28 @@ resumable — interrupting it leaves a partial that a re-run continues. Each sto
 section records its place in the table of contents (`parent_id` + `depth`), which
 is what makes the clone navigable both on the CLI and through the MCP resources.
 
-**Rules (PDFs).** Add `--rules` to also clone the city's Rules, which Municode
-serves as PDFs rather than inline HTML:
+**Rules & ordinances (PDFs).** Add `--rules` and/or `--ordinances` to also clone
+the city's Rules and Ordinances, which Municode serves as PDFs rather than inline
+HTML:
 
 ```bash
-municode-pp-cli clone "Boulder, CO" --rules
+municode-pp-cli clone "Boulder, CO" --rules --ordinances
 ```
 
-Each rule PDF is downloaded and text-scanned into the store (FTS-searchable
-alongside the code, `resource_type="munidoc"`) and exported to a `rules/`
-subfolder of the city's Markdown tree. Text extraction prefers `pdftotext`
-(poppler) when it is on `PATH` for better layout on multi-column legal PDFs, and
-otherwise uses a built-in pure-Go extractor so the CLI stays self-contained —
-install poppler beforehand if you want the higher-quality path (see the README).
-Scanned/image PDFs are stored as references (metadata + source link) with no
-text. Each stored rule records `source_url`, `extractor` (`pdftotext`/`go`/`none`),
-`text_extracted`, `doc_date`, and a `breadcrumb` path.
+Each PDF is downloaded and text-scanned into the store — FTS-searchable alongside
+the code, under `resource_type="munidoc"` (Rules) and `resource_type="ordinance"`
+— and exported to `rules/` and `ordinances/` subfolders of the city's Markdown
+tree. Ordinances are organized by adoption year and also carry their `subject`
+(description) and `doc_date` (adoption date); the subject is stored even when the
+PDF is a scan, so ordinances stay searchable by subject.
+
+Text extraction prefers `pdftotext` (poppler) when it is on `PATH` for better
+layout on multi-column legal PDFs, and otherwise uses a built-in pure-Go
+extractor so the CLI stays self-contained — install poppler beforehand if you
+want the higher-quality path (see the README). Scanned/image PDFs are stored as
+references (metadata + source link) with no text. Each stored doc records
+`source_url`, `extractor` (`pdftotext`/`go`/`none`), `text_extracted`, `doc_date`,
+and a `breadcrumb` path.
 
 ### 2. See what you have offline
 

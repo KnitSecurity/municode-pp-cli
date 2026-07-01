@@ -27,7 +27,7 @@ No account or API key is required — Municode's public API is unauthenticated. 
 
 ### Optional: `pdftotext` for better PDF text
 
-The CLI works out of the box with **no extra dependencies** — a built-in Go extractor reads the PDF-based content (Rules, and later ordinances). If you want cleaner text for those multi-column, table-heavy legal PDFs, install **`pdftotext`** (from poppler) *before* cloning with `--rules`; the CLI detects it on `PATH` and prefers it automatically:
+The CLI works out of the box with **no extra dependencies** — a built-in Go extractor reads the PDF-based content (Rules and ordinances). If you want cleaner text for those multi-column, table-heavy legal PDFs, install **`pdftotext`** (from poppler) *before* cloning with `--rules` / `--ordinances`; the CLI detects it on `PATH` and prefers it automatically:
 
 ```bash
 # macOS
@@ -107,10 +107,10 @@ These capabilities aren't available in any other tool for this API.
   municode-pp-cli clone "Atlanta, GA" --export ./atlanta-code --agent
   ```
 
-  Add **`--rules`** to also clone the city's Rules, which Municode serves as **PDFs**: each PDF is downloaded and text-scanned into the store (FTS-searchable) and exported to a `rules/` subfolder. Extraction uses `pdftotext` when installed (see [Optional: pdftotext](#optional-pdftotext-for-better-pdf-text)), otherwise the built-in Go extractor; scanned/image PDFs are kept as references. Historical archives, so it takes a while on large sets.
+  Add **`--rules`** and/or **`--ordinances`** to also clone the city's Rules and Ordinances, which Municode serves as **PDFs**: each PDF is downloaded and text-scanned into the store (FTS-searchable) and exported to `rules/` and `ordinances/` subfolders. Ordinances also carry their subject and adoption date. Extraction uses `pdftotext` when installed (see [Optional: pdftotext](#optional-pdftotext-for-better-pdf-text)), otherwise the built-in Go extractor; scanned/image PDFs are kept as references. These are historical archives, so they take a while on large sets.
 
   ```bash
-  municode-pp-cli clone "Boulder, CO" --rules
+  municode-pp-cli clone "Boulder, CO" --rules --ordinances
   ```
 - **`diff`** — See which sections of a city's code changed in the live code since you cloned it: added, removed, or reworded.
 

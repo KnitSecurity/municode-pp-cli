@@ -22,6 +22,7 @@ func newNovelCloneCmd(flags *rootFlags) *cobra.Command {
 	var flagExport string
 	var flagNoExport bool
 	var flagRules bool
+	var flagOrdinances bool
 	var dbPath string
 	var maxNodes int
 
@@ -43,11 +44,12 @@ func newNovelCloneCmd(flags *rootFlags) *cobra.Command {
 			"code can take several minutes. The clone runs to completion in a single pass — start it and " +
 			"walk away; there is no need to run it twice. Interrupting it (Ctrl-C) leaves a resumable " +
 			"partial: re-running skips already-stored sections.\n\n" +
-			"Rules & ordinances: pass --rules to also clone the city's Rules, which Municode serves as PDFs. " +
-			"Each PDF is downloaded and text-scanned into the store (and exported to a rules/ subfolder). " +
-			"Text extraction uses pdftotext (poppler) when it is installed for better layout, otherwise a " +
-			"built-in Go extractor; scanned/image PDFs are stored as references with no text. Installing " +
-			"pdftotext is optional — see the README.",
+			"Rules & ordinances: pass --rules and/or --ordinances to also clone the city's Rules and " +
+			"Ordinances, which Municode serves as PDFs. Each PDF is downloaded and text-scanned into the " +
+			"store (and exported to rules/ and ordinances/ subfolders). Text extraction uses pdftotext " +
+			"(poppler) when it is installed for better layout, otherwise a built-in Go extractor; " +
+			"scanned/image PDFs are stored as references with no text. Installing pdftotext is optional — " +
+			"see the README. These are historical archives, so they take a while on large sets.",
 		Example:     "  municode-pp-cli clone \"Atlanta, GA\"\n  municode-pp-cli clone \"Atlanta, GA\" --export ./atlanta-code",
 		Annotations: map[string]string{"mcp:read-only": "true", "pp:happy-args": "city=Boulder, CO"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -132,6 +134,22 @@ func newNovelCloneCmd(flags *rootFlags) *cobra.Command {
 				partial = partial || rulesPartial
 			}
 
+			// Optional: Ordinances (the code's OrdBank PDFs, by adoption year).
+			ordinancesCount := 0
+			if flagOrdinances {
+				if !flags.quiet {
+					fmt.Fprintf(cmd.ErrOrStderr(),
+						"Fetching Ordinances for %s, %s — each ordinance is a PDF that is downloaded and text-scanned%s.\n",
+						res.ClientName, res.StateAbbr, mcExtractorNote())
+				}
+				var ordPartial bool
+				ordinancesCount, ordPartial, err = mcSyncOrdinances(ctx, c, db, res, flags.timeout, progress)
+				if err != nil {
+					return fmt.Errorf("cloning ordinances for %s: %w", args[0], err)
+				}
+				partial = partial || ordPartial
+			}
+
 			// Timestamp the clone so snapshots can be kept on disk and compared
 			// across time (pair with the job_id, which is the codification version).
 			clonedAt := time.Now().UTC().Format(time.RFC3339)
@@ -170,17 +188,28 @@ func newNovelCloneCmd(flags *rootFlags) *cobra.Command {
 				}
 				exported = n
 
-				// Rules go in a rules/ subfolder with their own metadata.
+				// Rules and ordinances go in their own subfolders with PDF metadata.
 				if flagRules {
 					rules, rerr := mcLoadCityRules(ctx, db, res.ClientID)
 					if rerr != nil {
 						return rerr
 					}
-					rn, rerr := mcExportRulesMarkdown(filepath.Join(exportDir, "rules"), rules)
+					rn, rerr := mcExportPDFDocsMarkdown(filepath.Join(exportDir, "rules"), rules)
 					if rerr != nil {
 						return rerr
 					}
 					exported += rn
+				}
+				if flagOrdinances {
+					ords, oerr := mcLoadCityOrdinances(ctx, db, res.ClientID)
+					if oerr != nil {
+						return oerr
+					}
+					on, oerr := mcExportPDFDocsMarkdown(filepath.Join(exportDir, "ordinances"), ords)
+					if oerr != nil {
+						return oerr
+					}
+					exported += on
 				}
 			}
 
@@ -201,6 +230,9 @@ func newNovelCloneCmd(flags *rootFlags) *cobra.Command {
 			if flagRules {
 				result["rules"] = rulesCount
 			}
+			if flagOrdinances {
+				result["ordinances"] = ordinancesCount
+			}
 			if partial {
 				result["partial"] = true
 				if maxNodes > 0 {
@@ -216,6 +248,7 @@ func newNovelCloneCmd(flags *rootFlags) *cobra.Command {
 	cmd.Flags().StringVar(&flagExport, "export", "", "Export the Markdown/text tree to this directory (default: a per-city folder next to the database)")
 	cmd.Flags().BoolVar(&flagNoExport, "no-export", false, "Do not write the Markdown/text tree; store only the database")
 	cmd.Flags().BoolVar(&flagRules, "rules", false, "Also clone the city's Rules (MuniDocs PDFs): download each PDF and text-scan it into the store")
+	cmd.Flags().BoolVar(&flagOrdinances, "ordinances", false, "Also clone the city's Ordinances (OrdBank PDFs, by adoption year): download and text-scan each")
 	cmd.Flags().StringVar(&dbPath, "db", "", "SQLite database path (default: resolved data directory)")
 	cmd.Flags().IntVar(&maxNodes, "max-nodes", 0, "Cap the number of content chunks fetched (0 = whole code)")
 	return cmd
@@ -257,15 +290,16 @@ func mcExportMarkdown(dir string, docs []mcStoredDoc, manifest map[string]any) (
 	return written, nil
 }
 
-// mcExportRulesMarkdown writes one Markdown file per Rules PDF into dir, carrying
-// the breadcrumb, date, source PDF link, and either the extracted text or a
-// scanned-document note. Returns the number of files written.
-func mcExportRulesMarkdown(dir string, docs []mcStoredDoc) (int, error) {
+// mcExportPDFDocsMarkdown writes one Markdown file per PDF-backed document (Rules
+// or ordinances) into dir, carrying the breadcrumb, date, subject, source PDF
+// link, and either the extracted text or a scanned-document note. Returns the
+// number of files written.
+func mcExportPDFDocsMarkdown(dir string, docs []mcStoredDoc) (int, error) {
 	if len(docs) == 0 {
 		return 0, nil
 	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return 0, fmt.Errorf("creating rules export dir: %w", err)
+		return 0, fmt.Errorf("creating export dir: %w", err)
 	}
 	written := 0
 	for _, d := range docs {
@@ -282,6 +316,9 @@ func mcExportRulesMarkdown(dir string, docs []mcStoredDoc) (int, error) {
 		}
 		if meta != "" {
 			b.WriteString("> " + meta + "\n\n")
+		}
+		if d.Subject != "" {
+			b.WriteString("**" + d.Subject + "**\n\n")
 		}
 		if d.TextExtracted != nil && *d.TextExtracted && d.Text != "" {
 			b.WriteString(d.Text + "\n\n")
