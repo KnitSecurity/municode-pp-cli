@@ -31,9 +31,11 @@ func main() {
 		"Municode",
 		version,
 		server.WithToolCapabilities(false),
+		server.WithResourceCapabilities(false, true),
 	)
 
 	mcptools.RegisterTools(s)
+	mcptools.RegisterResources(s)
 
 	transport := flag.String("transport", defaultTransport(), "MCP transport: stdio | http")
 	addr := flag.String("addr", defaultHTTPAddr, "bind address for http transport (host:port or :port)")
