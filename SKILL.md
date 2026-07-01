@@ -1,7 +1,7 @@
 ---
 name: pp-municode
 description: "Every Municode feature, plus an offline local mirror, real full-text search, change tracking, and citation tooling no other Municode tool has. Trigger phrases: `look up Atlanta zoning code`, `what does the city code say about short-term rentals`, `compare noise ordinances across cities`, `find the definition of dwelling unit in the municipal code`, `clone a municipal code for offline search`, `use municode`, `run municode`."
-author: "Clu"
+author: "Ryan Jamieson"
 license: "Apache-2.0"
 argument-hint: "<command> [args] | install cli|mcp"
 allowed-tools: "Read Bash"
@@ -13,27 +13,21 @@ metadata:
     install:
       - kind: go
         bins: [municode-pp-cli]
-        module: github.com/mvanhorn/printing-press-library/library/government/municode/cmd/municode-pp-cli
+        module: github.com/KnitSecurity/municode-pp-cli/cmd/municode-pp-cli
 ---
 
-# Municode — Printing Press CLI
+# Municode CLI
 
 ## Prerequisites: Install the CLI
 
 This skill drives the `municode-pp-cli` binary. **You must verify the CLI is installed before invoking any command from this skill.** If it is missing, install it first:
 
-1. Install via the Printing Press installer. It defaults binaries to `$HOME/.local/bin` on macOS/Linux and `%LOCALAPPDATA%\Programs\PrintingPress\bin` on Windows:
+1. Install with the Go toolchain (requires Go 1.26 or newer). This installs into `$GOPATH/bin` (default `$HOME/go/bin`):
    ```bash
-   npx -y @mvanhorn/printing-press-library install municode --cli-only
+   go install github.com/KnitSecurity/municode-pp-cli/cmd/municode-pp-cli@latest
    ```
 2. Verify: `municode-pp-cli --version`
-3. Ensure the reported install directory is on `$PATH` for the agent/runtime that will invoke this skill.
-
-If the `npx` install fails (no Node, offline, etc.), fall back to a direct Go install (requires Go 1.26.4 or newer). This installs into `$GOPATH/bin` (default `$HOME/go/bin`), so add that directory to `$PATH` instead:
-
-```bash
-go install github.com/mvanhorn/printing-press-library/library/government/municode/cmd/municode-pp-cli@latest
-```
+3. Ensure `$GOPATH/bin` (usually `$HOME/go/bin`) is on `$PATH` for the agent/runtime that will invoke this skill.
 
 If `--version` reports "command not found" after install, the runtime cannot see the binary directory on `$PATH`. Do not proceed with skill commands until verification succeeds.
 
@@ -316,7 +310,7 @@ Parse `$ARGUMENTS`:
 
 1. Install the MCP server:
    ```bash
-   go install github.com/mvanhorn/printing-press-library/library/government/municode/cmd/municode-pp-mcp@latest
+   go install github.com/KnitSecurity/municode-pp-cli/cmd/municode-pp-mcp@latest
    ```
 2. Register with Claude Code using the binary's **absolute path** (`go install` puts it in `~/go/bin`, which is usually not on the PATH the host uses to launch the server — a bare name shows as *not connected*):
    ```bash

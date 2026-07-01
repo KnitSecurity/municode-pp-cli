@@ -1,21 +1,24 @@
-# Upstream submission notes
+# Upstream contributions to CLI Printing Press
 
-This CLI began as a CLI Printing Press print and was then extended and fixed by
-hand. This document is the hand-off for two upstreams:
+This CLI began as a CLI Printing Press print and is now maintained as a
+**standalone project** at <https://github.com/KnitSecurity/municode-pp-cli>. It
+is not published to `mvanhorn/printing-press-library` (that submission was
+intentionally set aside). This document tracks only the **framework-level fixes**
+worth folding back into
+[`mvanhorn/cli-printing-press`](https://github.com/mvanhorn/cli-printing-press)
+(the generator), because they are not Municode-specific — they affect every
+printed CLI.
 
-1. Submitting the **Municode CLI** as a new item in
-   [`mvanhorn/printing-press-library`](https://github.com/mvanhorn/printing-press-library).
-2. Folding the **framework-level fixes** back into
-   [`mvanhorn/cli-printing-press`](https://github.com/mvanhorn/cli-printing-press)
-   (the generator), because they are not Municode-specific — they affect every
-   printed CLI.
+Status:
 
-Public source of truth for the standalone build:
-<https://github.com/KnitSecurity/municode-pp-cli> (tag `v1.0.2`).
+- **Network-retry backoff — SUBMITTED.** Issue
+  [mvanhorn/cli-printing-press#3423](https://github.com/mvanhorn/cli-printing-press/issues/3423),
+  PR [#3424](https://github.com/mvanhorn/cli-printing-press/pull/3424).
+- The remaining fixes below are not yet submitted.
 
 ---
 
-## Part 1 — Framework fixes (raise against `cli-printing-press`)
+## Framework fixes (raise against `cli-printing-press`)
 
 These should be issues/PRs on the **generator**, not just carried as
 `.printing-press-patches/` in this CLI. Ordered by blast radius.
@@ -34,7 +37,7 @@ ignore a dedicated build output dir instead.
 **Evidence here:** `.gitignore` + the `fix: commit cmd/municode-pp-cli source`
 change.
 
-### 2. Back off before retrying transient network errors — **MEDIUM**
+### 2. Back off before retrying transient network errors — **MEDIUM** — ✅ SUBMITTED (#3424)
 The client template retries 429 and 5xx with exponential backoff, but retries
 network-level failures (connection reset, DNS blip, request timeout) with a bare
 `continue` and no backoff — three retries burn out in a tight millisecond loop,
@@ -60,31 +63,7 @@ build info when the compiled value is a placeholder.
 **Evidence here:** `internal/cliutil/buildversion.go` +
 `.printing-press-patches/version-buildinfo-fallback.md`.
 
----
-
-## Part 2 — The Municode library item
-
-Submit via the Printing Press publish flow (`/printing-press-publish` or the
-`publish` sub-skill) as a new item, e.g. `library/government/municode`.
-
-### What it adds beyond a stock print
-A **local-clone + offline-AI** surface for US municipal codes:
-
-- `clone` — pull a city's entire code into local SQLite (TOC + content + FTS +
-  ordinance-history lineage), and by default a per-city Markdown tree. Runs to
-  completion in one set-and-forget pass; resilient to transient network blips.
-- Offline commands over the clone: `search` (real FTS — upstream search is a paid
-  tier), `read --data-source local|auto|live`, `defs`, `history`, `xref`,
-  `compare`, `clones`, `stale`, `diff`.
-- **MCP surface:** the clone exposed as resources (`municode://clones`,
-  `municode://clone/{clientId}/{nodeId}`) plus a `context` tool that front-loads a
-  clone-first, offline-vs-live workflow; in-session clones refresh the resource
-  list without a restart.
-
-Design/plan: `docs/plans/2026-06-30-001-feat-local-clone-mcp-plan.md`.
-User docs: `docs/local-clone-mcp.md`, `docs/mcp-manual.md`.
-
-### Municode-specific fix worth noting for the generic sync
+### 5. Chunk-group completeness in the generic sync — note only
 Municode delivers a large subtree as a **chunk-group TOC**: the requested node's
 body is inlined, but its descendants come back as content-less pointer docs
 (`Content: null`) whose bodies live in a deeper per-node chunk-group fetch. The
@@ -96,8 +75,16 @@ for other chunked APIs.
 **Evidence here:** `internal/cli/municode_store.go` +
 `internal/cli/municode_clone_completeness_test.go`.
 
-### CLI-specific patches that stay with the item
-The remaining `.printing-press-patches/` entries (`cli-root-register-clones`,
-`mcp-context-clone-workflow`, `mcp-main-resources-and-refresh`,
-`docs-local-clone-mcp-surface`) are wiring for the novel commands/resources and
-travel with the library item, not the generator.
+---
+
+## Library submission — set aside
+
+Publishing this CLI to `mvanhorn/printing-press-library` was intentionally not
+pursued. This repo is maintained as a standalone project instead. If a library
+submission is ever revisited, do it via the Printing Press publish flow
+(`/printing-press-publish`), which regenerates a library-shaped tree — do **not**
+fork this repo into a parallel library version.
+
+The `.printing-press-patches/` entries remain as reprint guards documenting the
+generated-file hand-edits, in case this source is ever re-run through the
+generator.

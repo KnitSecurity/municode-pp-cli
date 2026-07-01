@@ -48,21 +48,12 @@ anything on Municode — it only reads public data and writes to your local copy
 
 You need two things: the server binary, and an entry in your MCP host's config.
 
-### Option A — Claude Desktop (one-click)
+### Option A — Claude Desktop (manual config)
 
-1. Download the `.mcpb` bundle for your platform from the project's latest
-   release.
-2. Double-click it. Claude Desktop opens and walks you through the install.
-
-Requires Claude Desktop 1.0.0+. Pre-built bundles ship for macOS Apple Silicon
-and Windows; on other platforms use Option B.
-
-### Option B — Claude Desktop (manual config)
-
-Install the binary:
+Install the binary with the Go toolchain (requires Go 1.26+):
 
 ```bash
-go install github.com/mvanhorn/printing-press-library/library/government/municode/cmd/municode-pp-mcp@latest
+go install github.com/KnitSecurity/municode-pp-cli/cmd/municode-pp-mcp@latest
 ```
 
 > **Use the binary's absolute path in the config.** `go install` puts the binary
@@ -87,9 +78,9 @@ Add it to `~/Library/Application Support/Claude/claude_desktop_config.json`
 
 Restart Claude Desktop. You should see "municode" in the tools list.
 
-### Option C — Claude Code
+### Option B — Claude Code
 
-Register the server with its **absolute path** (see the PATH note under Option B —
+Register the server with its **absolute path** (see the PATH note under Option A —
 Claude Code launches the server in a minimal environment where `~/go/bin` is
 usually not on PATH, so a bare name shows as not connected):
 
@@ -101,7 +92,7 @@ claude mcp list      # verify it shows connected
 To make it available in every project (not just the current directory), add user
 scope: `claude mcp add -s user municode-pp-mcp -- "$(command -v municode-pp-mcp)"`.
 
-### Option D — any other MCP host
+### Option C — any other MCP host
 
 Run the binary with the stdio transport (the default) and point your host at it:
 

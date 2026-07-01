@@ -6,8 +6,6 @@ Browse and read 3,300+ US municipal codes from the command line, then clone any 
 
 ## Install
 
-### From GitHub with Go (no Node, no Printing Press)
-
 Install both binaries directly from source with the Go toolchain (requires Go 1.26 or newer):
 
 ```bash
@@ -25,105 +23,18 @@ go install ./cmd/municode-pp-cli ./cmd/municode-pp-mcp
 
 No account or API key is required — Municode's public API is unauthenticated. To connect the MCP server to an agent, see the [MCP User Manual](docs/mcp-manual.md) (register it by its absolute path).
 
-### Via Printing Press (CLI + agent skill)
+## Use with an MCP client (Claude Desktop, Claude Code, …)
 
-The Printing Press installer sets up both the `municode-pp-cli` binary and the `pp-municode` agent skill (Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot, and other agents supported by the upstream [`skills`](https://github.com/vercel-labs/skills) CLI) in one shot:
+After installing `municode-pp-mcp` (see [Install](#install)), point your MCP host at it. **Use the binary's absolute path** — `go install` places it in `~/go/bin`, which is usually not on the `PATH` the host uses to launch servers, so a bare `municode-pp-mcp` shows as *not connected*. Find it with `command -v municode-pp-mcp`.
 
-```bash
-npx -y @mvanhorn/printing-press-library install municode
-```
-
-For CLI only (no skill):
+**Claude Code:**
 
 ```bash
-npx -y @mvanhorn/printing-press-library install municode --cli-only
+claude mcp add municode-pp-mcp -- "$(command -v municode-pp-mcp)"
+claude mcp list
 ```
 
-For skill only — installs the skill into the same agents as the default command above, but skips the CLI binary (use this to update or reinstall just the skill):
-
-```bash
-npx -y @mvanhorn/printing-press-library install municode --skill-only
-```
-
-To constrain the skill install to one or more specific agents (repeatable — agent names match the [`skills`](https://github.com/vercel-labs/skills) CLI):
-
-```bash
-npx -y @mvanhorn/printing-press-library install municode --agent claude-code
-npx -y @mvanhorn/printing-press-library install municode --agent claude-code --agent codex
-```
-
-### Without Node (Go fallback)
-
-If `npx` isn't available (no Node, offline), install the CLI directly via Go (requires Go 1.26.4 or newer):
-
-```bash
-go install github.com/mvanhorn/printing-press-library/library/government/municode/cmd/municode-pp-cli@latest
-```
-
-This installs the CLI only — no skill.
-
-### Pre-built binary
-
-Download a pre-built binary for your platform from the [latest release](https://github.com/mvanhorn/printing-press-library/releases/tag/municode-current). On macOS, clear the Gatekeeper quarantine: `xattr -d com.apple.quarantine <binary>`. On Unix, mark it executable: `chmod +x <binary>`.
-
-<!-- pp-hermes-install-anchor -->
-## Install for Hermes
-
-Install the CLI binary first. The installer writes binaries to a per-user managed bin directory by default: `$HOME/.local/bin` on macOS/Linux and `%LOCALAPPDATA%\Programs\PrintingPress\bin` on Windows.
-
-```bash
-npx -y @mvanhorn/printing-press-library install municode --cli-only
-```
-
-Then install the focused Hermes skill.
-
-From the Hermes CLI:
-
-```bash
-hermes skills install mvanhorn/printing-press-library/cli-skills/pp-municode --force
-```
-
-Inside a Hermes chat session:
-
-```bash
-/skills install mvanhorn/printing-press-library/cli-skills/pp-municode --force
-```
-
-Restart the Hermes session or gateway if the newly installed skill is not visible immediately.
-
-## Install for OpenClaw
-Install both the CLI binary and the focused OpenClaw skill. The installer defaults binaries to a per-user bin directory (`$HOME/.local/bin` on macOS/Linux, `%LOCALAPPDATA%\Programs\PrintingPress\bin` on Windows):
-
-```bash
-npx -y @mvanhorn/printing-press-library install municode --agent openclaw
-```
-
-Restart the OpenClaw session or gateway if the newly installed skill is not visible immediately.
-
-## Use with Claude Desktop
-
-This CLI ships an [MCPB](https://github.com/modelcontextprotocol/mcpb) bundle — Claude Desktop's standard format for one-click MCP extension installs (no JSON config required).
-
-To install:
-
-1. Download the `.mcpb` for your platform from the [latest release](https://github.com/mvanhorn/printing-press-library/releases/tag/municode-current).
-2. Double-click the `.mcpb` file. Claude Desktop opens and walks you through the install.
-
-Requires Claude Desktop 1.0.0 or later. Pre-built bundles ship for macOS Apple Silicon (`darwin-arm64`) and Windows (`amd64`, `arm64`); for other platforms, use the manual config below.
-
-Once connected, call the `context` tool first — it front-loads the clone-first workflow and the offline-vs-live tool split. The server also exposes the local clone as MCP **resources**: `municode://clones` (inventory) and `municode://clone/{clientId}/{nodeId}` (one section as plain text). Resource reads are offline, and a city cloned mid-session appears in `resources/list` without a restart. See the **[MCP User Manual](docs/mcp-manual.md)** for a plain-language guide, and [docs/local-clone-mcp.md](docs/local-clone-mcp.md) for the offline workflow detail.
-
-<details>
-<summary>Manual JSON config (advanced)</summary>
-
-If you can't use the MCPB bundle (older Claude Desktop, unsupported platform), install the MCP binary and configure it manually.
-
-
-```bash
-go install github.com/mvanhorn/printing-press-library/library/government/municode/cmd/municode-pp-mcp@latest
-```
-
-Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json`). **Use the binary's absolute path** — `go install` places it in `~/go/bin`, which is usually not on the PATH the MCP host uses to launch servers, so a bare `municode-pp-mcp` shows as *not connected*. Find it with `command -v municode-pp-mcp`:
+**Claude Desktop** — add to `~/Library/Application Support/Claude/claude_desktop_config.json` (or the equivalent on your OS):
 
 ```json
 {
@@ -135,7 +46,7 @@ Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_
 }
 ```
 
-</details>
+Once connected, call the `context` tool first — it front-loads the clone-first workflow and the offline-vs-live tool split. The server also exposes the local clone as MCP **resources**: `municode://clones` (inventory) and `municode://clone/{clientId}/{nodeId}` (one section as plain text). Resource reads are offline, and a city cloned mid-session appears in `resources/list` without a restart. See the **[MCP User Manual](docs/mcp-manual.md)** for a plain-language guide, and [docs/local-clone-mcp.md](docs/local-clone-mcp.md) for the offline workflow detail.
 
 ## Authentication
 
@@ -429,4 +340,4 @@ This CLI was built by studying these projects and resources:
 - [**RoryStolzenberg/municode-dump**](https://github.com/RoryStolzenberg/municode-dump) — JavaScript
 - [**Skatterbrainz/MunicipalMCP**](https://github.com/Skatterbrainz/MunicipalMCP) — Python
 
-Generated by [CLI Printing Press](https://github.com/mvanhorn/cli-printing-press)
+Bootstrapped with [CLI Printing Press](https://github.com/mvanhorn/cli-printing-press) and maintained as a standalone project.
