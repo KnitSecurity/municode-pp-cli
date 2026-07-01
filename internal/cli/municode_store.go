@@ -216,12 +216,13 @@ func mcScanDocs(ctx context.Context, db *store.Store, query string, args ...any)
 
 // mcSyncedCity is a distinct synced municipality derived from stored documents.
 type mcSyncedCity struct {
-	ClientID  int    `json:"client_id"`
-	Client    string `json:"client"`
-	State     string `json:"state"`
-	ProductID int    `json:"product_id"`
-	JobID     int    `json:"job_id"`
-	Sections  int    `json:"sections"`
+	ClientID   int    `json:"client_id"`
+	Client     string `json:"client"`
+	State      string `json:"state"`
+	ProductID  int    `json:"product_id"`
+	JobID      int    `json:"job_id"`
+	Sections   int    `json:"sections"`
+	LastSynced string `json:"last_synced,omitempty"`
 }
 
 // mcSyncedCities lists the distinct municipalities present in the local store.
@@ -232,7 +233,8 @@ func mcSyncedCities(ctx context.Context, db *store.Store) ([]mcSyncedCity, error
 		       json_extract(data,'$.state'),
 		       json_extract(data,'$.product_id'),
 		       MAX(json_extract(data,'$.job_id')),
-		       COUNT(*)
+		       COUNT(*),
+		       MAX(synced_at)
 		FROM resources WHERE resource_type = ?
 		GROUP BY json_extract(data,'$.client_id')
 		ORDER BY json_extract(data,'$.client')`, mcDocType)
@@ -244,18 +246,20 @@ func mcSyncedCities(ctx context.Context, db *store.Store) ([]mcSyncedCity, error
 		var (
 			cid, pid, jid, n sql.NullInt64
 			client, state    sql.NullString
+			lastSynced       sql.NullString
 		)
-		if err := rows.Scan(&cid, &client, &state, &pid, &jid, &n); err != nil {
+		if err := rows.Scan(&cid, &client, &state, &pid, &jid, &n, &lastSynced); err != nil {
 			_ = rows.Close()
 			return nil, err
 		}
 		out = append(out, mcSyncedCity{
-			ClientID:  int(cid.Int64),
-			Client:    client.String,
-			State:     state.String,
-			ProductID: int(pid.Int64),
-			JobID:     int(jid.Int64),
-			Sections:  int(n.Int64),
+			ClientID:   int(cid.Int64),
+			Client:     client.String,
+			State:      state.String,
+			ProductID:  int(pid.Int64),
+			JobID:      int(jid.Int64),
+			Sections:   int(n.Int64),
+			LastSynced: lastSynced.String,
 		})
 	}
 	if err := rows.Err(); err != nil {
