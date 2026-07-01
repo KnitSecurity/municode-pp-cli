@@ -20,6 +20,7 @@ import (
 
 func newNovelCloneCmd(flags *rootFlags) *cobra.Command {
 	var flagExport string
+	var flagNoExport bool
 	var dbPath string
 	var maxNodes int
 
@@ -28,8 +29,10 @@ func newNovelCloneCmd(flags *rootFlags) *cobra.Command {
 		Short: "Pull a municipality's entire code into a local store and an AI-ready Markdown tree in one command",
 		Long: "Clone the full current code of a municipality for offline / AI reference. Walks the entire " +
 			"table of contents, fetches every section, stores it in local SQLite with full-text search, and " +
-			"builds the ordinance-history lineage index. With --export it also writes a clean Markdown/text " +
-			"tree an agent can read directly with no further API calls.\n\n" +
+			"builds the ordinance-history lineage index. It also writes a clean Markdown/text tree an agent " +
+			"can read directly with no further API calls: by default into a per-city folder next to the " +
+			"database (e.g. ~/municode-clones/atlanta-ga). Use --export DIR to choose the location, or " +
+			"--no-export to store only the database.\n\n" +
 			"Scope: current authoritative text plus the full ordinance-change lineage embedded in each " +
 			"section. Verbatim text of superseded code versions is a paid Municode (CodeBank) feature and is " +
 			"not included. After clone, 'search', 'read', 'defs', 'history', 'xref', 'compare', and 'diff' all " +
@@ -104,17 +107,24 @@ func newNovelCloneCmd(flags *rootFlags) *cobra.Command {
 			// across time (pair with the job_id, which is the codification version).
 			clonedAt := time.Now().UTC().Format(time.RFC3339)
 
+			// Export a readable Markdown/text tree. By default it goes to a
+			// per-city subfolder next to the database (e.g.
+			// ~/municode-clones/atlanta-ga), so a bare `clone` produces a browsable
+			// copy with no extra flags. --export overrides the location;
+			// --no-export skips writing files (store only). Automated verify/
+			// dogfood runs skip the default export to avoid surprise file writes.
+			exportDir := flagExport
+			if exportDir == "" && !flagNoExport && !cliutil.IsDogfoodEnv() && !cliutil.IsVerifyEnv() {
+				exportDir = filepath.Join(filepath.Dir(dbPath), mcCitySlug(res.ClientName, res.StateAbbr))
+			}
 			exported := 0
-			if flagExport != "" {
+			if exportDir != "" {
 				docs, derr := mcLoadCityDocs(ctx, db, res.ClientID)
 				if derr != nil {
 					return derr
 				}
-				if err := os.MkdirAll(flagExport, 0o755); err != nil {
-					return fmt.Errorf("creating export dir: %w", err)
-				}
-				// Write a self-describing manifest (city, version, timestamp,
-				// counts) so a future clone can be compared against this snapshot.
+				// A self-describing manifest (city, version, timestamp, counts)
+				// so a future clone can be compared against this snapshot.
 				manifest := map[string]any{
 					"city":        res.ClientName + ", " + res.StateAbbr,
 					"client_id":   res.ClientID,
@@ -125,31 +135,11 @@ func newNovelCloneCmd(flags *rootFlags) *cobra.Command {
 					"partial":     partial,
 					"library_url": res.LibraryURL,
 				}
-				if mdata, merr := json.MarshalIndent(manifest, "", "  "); merr == nil {
-					if werr := os.WriteFile(filepath.Join(flagExport, "clone-manifest.json"), mdata, 0o644); werr != nil {
-						return fmt.Errorf("writing clone manifest: %w", werr)
-					}
+				n, eerr := mcExportMarkdown(exportDir, docs, manifest)
+				if eerr != nil {
+					return eerr
 				}
-				for _, d := range docs {
-					name := mcSafeFile(d.DocID) + ".md"
-					var b strings.Builder
-					if d.Title != "" {
-						b.WriteString("# " + d.Title + "\n\n")
-					}
-					b.WriteString(d.Text + "\n\n")
-					if len(d.OrdHistory) > 0 {
-						b.WriteString("## History\n\n")
-						for _, h := range d.OrdHistory {
-							b.WriteString("- " + h.Raw + "\n")
-						}
-						b.WriteString("\n")
-					}
-					b.WriteString("Source: " + d.Citation + "\n")
-					if err := os.WriteFile(filepath.Join(flagExport, name), []byte(b.String()), 0o644); err != nil {
-						return fmt.Errorf("writing %s: %w", name, err)
-					}
-					exported++
-				}
+				exported = n
 			}
 
 			result := map[string]any{
@@ -162,8 +152,8 @@ func newNovelCloneCmd(flags *rootFlags) *cobra.Command {
 				"db":          dbPath,
 				"library_url": res.LibraryURL,
 			}
-			if flagExport != "" {
-				result["export_dir"] = flagExport
+			if exportDir != "" {
+				result["export_dir"] = exportDir
 				result["exported_files"] = exported
 			}
 			if partial {
@@ -178,10 +168,47 @@ func newNovelCloneCmd(flags *rootFlags) *cobra.Command {
 			return printJSONFiltered(cmd.OutOrStdout(), result, flags)
 		},
 	}
-	cmd.Flags().StringVar(&flagExport, "export", "", "Also export a clean Markdown/text tree to this directory")
+	cmd.Flags().StringVar(&flagExport, "export", "", "Export the Markdown/text tree to this directory (default: a per-city folder next to the database)")
+	cmd.Flags().BoolVar(&flagNoExport, "no-export", false, "Do not write the Markdown/text tree; store only the database")
 	cmd.Flags().StringVar(&dbPath, "db", "", "SQLite database path (default: resolved data directory)")
 	cmd.Flags().IntVar(&maxNodes, "max-nodes", 0, "Cap the number of content chunks fetched (0 = whole code)")
 	return cmd
+}
+
+// mcExportMarkdown writes one Markdown file per stored section into dir, plus a
+// clone-manifest.json describing the snapshot. Returns the number of section
+// files written. Shared by the clone command's default and --export paths.
+func mcExportMarkdown(dir string, docs []mcStoredDoc, manifest map[string]any) (int, error) {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return 0, fmt.Errorf("creating export dir: %w", err)
+	}
+	if mdata, merr := json.MarshalIndent(manifest, "", "  "); merr == nil {
+		if werr := os.WriteFile(filepath.Join(dir, "clone-manifest.json"), mdata, 0o644); werr != nil {
+			return 0, fmt.Errorf("writing clone manifest: %w", werr)
+		}
+	}
+	written := 0
+	for _, d := range docs {
+		name := mcSafeFile(d.DocID) + ".md"
+		var b strings.Builder
+		if d.Title != "" {
+			b.WriteString("# " + d.Title + "\n\n")
+		}
+		b.WriteString(d.Text + "\n\n")
+		if len(d.OrdHistory) > 0 {
+			b.WriteString("## History\n\n")
+			for _, h := range d.OrdHistory {
+				b.WriteString("- " + h.Raw + "\n")
+			}
+			b.WriteString("\n")
+		}
+		b.WriteString("Source: " + d.Citation + "\n")
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(b.String()), 0o644); err != nil {
+			return written, fmt.Errorf("writing %s: %w", name, err)
+		}
+		written++
+	}
+	return written, nil
 }
 
 func mcSafeFile(s string) string {
