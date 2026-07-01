@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/KnitSecurity/municode-pp-cli/internal/cliutil"
 	mcptools "github.com/KnitSecurity/municode-pp-cli/internal/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
@@ -34,7 +35,7 @@ func main() {
 	var s *server.MCPServer
 	s = server.NewMCPServer(
 		"Municode",
-		version,
+		cliutil.ResolveVersion(version),
 		server.WithToolCapabilities(false),
 		server.WithResourceCapabilities(false, true),
 		server.WithHooks(mcptools.RefreshHooks(func() *server.MCPServer { return s })),

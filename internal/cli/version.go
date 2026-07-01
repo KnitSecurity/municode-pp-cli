@@ -7,6 +7,8 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+
+	"github.com/KnitSecurity/municode-pp-cli/internal/cliutil"
 )
 
 // version is the printed CLI's version, overridable at build time via ldflags.
@@ -19,7 +21,7 @@ func newVersionCmd() *cobra.Command {
 		Use:   "version",
 		Short: "Print version",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Printf("%s %s\n", cmd.Root().Name(), version)
+			fmt.Printf("%s %s\n", cmd.Root().Name(), cliutil.ResolveVersion(version))
 		},
 	}
 }
