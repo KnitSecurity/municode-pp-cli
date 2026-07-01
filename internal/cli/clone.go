@@ -6,6 +6,7 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -90,6 +91,9 @@ func newNovelCloneCmd(flags *rootFlags) *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("cloning %s: %w", args[0], err)
 			}
+			// Timestamp the clone so snapshots can be kept on disk and compared
+			// across time (pair with the job_id, which is the codification version).
+			clonedAt := time.Now().UTC().Format(time.RFC3339)
 
 			exported := 0
 			if flagExport != "" {
@@ -99,6 +103,23 @@ func newNovelCloneCmd(flags *rootFlags) *cobra.Command {
 				}
 				if err := os.MkdirAll(flagExport, 0o755); err != nil {
 					return fmt.Errorf("creating export dir: %w", err)
+				}
+				// Write a self-describing manifest (city, version, timestamp,
+				// counts) so a future clone can be compared against this snapshot.
+				manifest := map[string]any{
+					"city":        res.ClientName + ", " + res.StateAbbr,
+					"client_id":   res.ClientID,
+					"product_id":  res.ProductID,
+					"job_id":      res.JobID,
+					"cloned_at":   clonedAt,
+					"sections":    count,
+					"partial":     partial,
+					"library_url": res.LibraryURL,
+				}
+				if mdata, merr := json.MarshalIndent(manifest, "", "  "); merr == nil {
+					if werr := os.WriteFile(filepath.Join(flagExport, "clone-manifest.json"), mdata, 0o644); werr != nil {
+						return fmt.Errorf("writing clone manifest: %w", werr)
+					}
 				}
 				for _, d := range docs {
 					name := mcSafeFile(d.DocID) + ".md"
@@ -127,6 +148,7 @@ func newNovelCloneCmd(flags *rootFlags) *cobra.Command {
 				"client_id":   res.ClientID,
 				"product_id":  res.ProductID,
 				"job_id":      res.JobID,
+				"cloned_at":   clonedAt,
 				"sections":    count,
 				"db":          dbPath,
 				"library_url": res.LibraryURL,
