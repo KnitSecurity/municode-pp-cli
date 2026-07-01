@@ -5,7 +5,6 @@
 package cli
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -34,7 +33,11 @@ func newNovelCloneCmd(flags *rootFlags) *cobra.Command {
 			"Scope: current authoritative text plus the full ordinance-change lineage embedded in each " +
 			"section. Verbatim text of superseded code versions is a paid Municode (CodeBank) feature and is " +
 			"not included. After clone, 'search', 'read', 'defs', 'history', 'xref', 'compare', and 'diff' all " +
-			"work offline against the local store.",
+			"work offline against the local store.\n\n" +
+			"Timing: a full code can be thousands of sections, delivered in small chunk groups, so a large " +
+			"code can take several minutes. The clone runs to completion in a single pass — start it and " +
+			"walk away; there is no need to run it twice. Interrupting it (Ctrl-C) leaves a resumable " +
+			"partial: re-running skips already-stored sections.",
 		Example:     "  municode-pp-cli clone \"Atlanta, GA\"\n  municode-pp-cli clone \"Atlanta, GA\" --export ./atlanta-code",
 		Annotations: map[string]string{"mcp:read-only": "true", "pp:happy-args": "city=Boulder, CO"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -49,15 +52,12 @@ func newNovelCloneCmd(flags *rootFlags) *cobra.Command {
 				_ = cmd.Usage()
 				return usageErr(fmt.Errorf("a \"City, ST\" municipality argument is required"))
 			}
-			// Cloning a full code legitimately takes minutes; use a generous
-			// budget (honoring a larger user --timeout) rather than the short
-			// per-request default. The walk returns partial results on deadline.
-			budget := 15 * time.Minute
-			if flags.timeout > budget {
-				budget = flags.timeout
-			}
-			ctx, cancel := context.WithTimeout(cmd.Context(), budget)
-			defer cancel()
+			// A full clone runs to completion in a single pass — no artificial
+			// wall-clock cap — so even a large code can be cloned set-and-forget.
+			// Each HTTP request still honors --timeout; the overall walk is bounded
+			// only by the code's size (and Ctrl-C, which leaves a resumable
+			// partial). Users would rather wait once than run the command twice.
+			ctx := cmd.Context()
 
 			// Curtail the live walk under the dogfood matrix's flat timeout.
 			if cliutil.IsDogfoodEnv() && (maxNodes == 0 || maxNodes > 3) {
@@ -86,6 +86,15 @@ func newNovelCloneCmd(flags *rootFlags) *cobra.Command {
 				if human {
 					fmt.Fprintln(cmd.ErrOrStderr(), "clone:", msg)
 				}
+			}
+			// Set expectations up front: a full code can be thousands of sections,
+			// and Municode serves them in small chunk groups, so a big code takes a
+			// while. It runs to completion in one pass — no need to re-run. Printed
+			// to stderr so it never mixes into JSON/agent output on stdout.
+			if !flags.quiet {
+				fmt.Fprintf(cmd.ErrOrStderr(),
+					"Cloning the full code for %s, %s. Larger codes have thousands of sections and can take several minutes — this runs to completion in a single pass, so you can start it and walk away.\n",
+					res.ClientName, res.StateAbbr)
 			}
 			count, partial, err := mcSyncCode(ctx, c, db, res, maxNodes, progress)
 			if err != nil {
@@ -161,9 +170,9 @@ func newNovelCloneCmd(flags *rootFlags) *cobra.Command {
 				result["partial"] = true
 				if maxNodes > 0 {
 					result["max_nodes"] = maxNodes
-					result["note"] = "partial clone: --max-nodes cap was applied; raise it to clone the full code"
+					result["note"] = "partial clone: --max-nodes cap was applied; drop it (or raise it) to clone the full code"
 				} else {
-					result["note"] = "partial clone: the walk timed out; re-run to continue (already-stored sections are skipped) or raise --timeout"
+					result["note"] = "partial clone: interrupted before completion; re-run to continue (already-stored sections are skipped)"
 				}
 			}
 			return printJSONFiltered(cmd.OutOrStdout(), result, flags)
