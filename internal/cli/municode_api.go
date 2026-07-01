@@ -99,6 +99,19 @@ func mcSlug(s string) string {
 	return strings.Trim(s, "_")
 }
 
+// mcCitySlug builds a filesystem-friendly per-city folder name from a
+// municipality's name and state, e.g. ("Boulder", "CO") -> "boulder-co". Used as
+// the default clone export subfolder so each city lands in its own directory.
+func mcCitySlug(client, state string) string {
+	s := strings.ToLower(strings.TrimSpace(client + " " + state))
+	s = regexp.MustCompile(`[^a-z0-9]+`).ReplaceAllString(s, "-")
+	s = strings.Trim(s, "-")
+	if s == "" {
+		return "code"
+	}
+	return s
+}
+
 // mcLibraryURL builds the public library permalink for a code (optionally a node).
 func mcLibraryURL(abbr, clientName, nodeID string) string {
 	u := fmt.Sprintf("https://library.municode.com/%s/%s/codes/code_of_ordinances",
