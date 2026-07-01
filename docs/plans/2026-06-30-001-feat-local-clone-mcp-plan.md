@@ -1,6 +1,6 @@
 ---
 title: "feat: Local-clone MCP surface for AI interaction with cloned municipal codes"
-status: active
+status: completed
 date: 2026-06-30
 reviewed: 2026-06-30
 type: feat
