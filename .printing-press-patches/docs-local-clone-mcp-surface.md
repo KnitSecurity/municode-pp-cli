@@ -26,6 +26,11 @@ survives reprint on its own — the generated docs only need pointers to it.
   the server exposes the clone as resources `municode://clones` and
   `municode://clone/{clientId}/{nodeId}` (offline reads, mid-session refresh);
   link the MCP user manual `docs/mcp-manual.md` and `docs/local-clone-mcp.md`.
+- In the MCP config/registration instructions (README manual JSON + SKILL
+  `claude mcp add`), register the server by its **absolute path**, not the bare
+  name: `go install` drops the binary in `~/go/bin`, which is usually not on the
+  PATH the MCP host launches servers with, so a bare `municode-pp-mcp` shows as
+  *not connected*. Use `command -v municode-pp-mcp` / an absolute path.
 
 **SKILL.md**
 - Same `clones` bullet in "Local state that compounds".

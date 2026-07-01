@@ -102,13 +102,13 @@ If you can't use the MCPB bundle (older Claude Desktop, unsupported platform), i
 go install github.com/mvanhorn/printing-press-library/library/government/municode/cmd/municode-pp-mcp@latest
 ```
 
-Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json`). **Use the binary's absolute path** — `go install` places it in `~/go/bin`, which is usually not on the PATH the MCP host uses to launch servers, so a bare `municode-pp-mcp` shows as *not connected*. Find it with `command -v municode-pp-mcp`:
 
 ```json
 {
   "mcpServers": {
     "municode": {
-      "command": "municode-pp-mcp"
+      "command": "/home/you/go/bin/municode-pp-mcp"
     }
   }
 }
