@@ -4,6 +4,8 @@
 
 Browse and read 3,300+ US municipal codes from the command line, then clone any city's code into a local SQLite database for offline reading and FTS5 search that works even though Municode's own full-text search is a paid MuniPro feature. On top of that local store it adds clone-vs-live drift detection (diff), side-by-side cross-city topic comparison (compare), structured ordinance-history extraction (history), an intra-code cross-reference graph (xref), and authoritative defined-term lookup (defs).
 
+This was originally built to parse the municipal code of Boulder, CO, but other municipal codes are special, unique, snowflakes. Feel free to submit pull requests with updates to manage the quirks of your own local code. 
+
 ## Install
 
 Install both binaries directly from source with the Go toolchain (requires Go 1.26 or newer):
