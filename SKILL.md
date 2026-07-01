@@ -318,11 +318,11 @@ Parse `$ARGUMENTS`:
    ```bash
    go install github.com/mvanhorn/printing-press-library/library/government/municode/cmd/municode-pp-mcp@latest
    ```
-2. Register with Claude Code:
+2. Register with Claude Code using the binary's **absolute path** (`go install` puts it in `~/go/bin`, which is usually not on the PATH the host uses to launch the server — a bare name shows as *not connected*):
    ```bash
-   claude mcp add municode-pp-mcp -- municode-pp-mcp
+   claude mcp add municode-pp-mcp -- "$(command -v municode-pp-mcp)"
    ```
-3. Verify: `claude mcp list`
+3. Verify: `claude mcp list` (should show connected). If it doesn't: confirm the absolute path resolved, re-run from the same directory (or add `-s user` for all projects).
 
 Once connected, call the `context` tool first for the clone-first workflow and the offline-vs-live tool split. The server also exposes the local clone as resources — `municode://clones` (inventory) and `municode://clone/{clientId}/{nodeId}` (one section as plain text); reads are offline and a mid-session clone appears in `resources/list` without a restart. See [docs/local-clone-mcp.md](docs/local-clone-mcp.md).
 

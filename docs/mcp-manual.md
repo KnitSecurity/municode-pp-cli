@@ -65,6 +65,13 @@ Install the binary:
 go install github.com/mvanhorn/printing-press-library/library/government/municode/cmd/municode-pp-mcp@latest
 ```
 
+> **Use the binary's absolute path in the config.** `go install` puts the binary
+> in `$(go env GOPATH)/bin` (usually `~/go/bin`), which is often **not** on the
+> PATH that Claude Desktop uses to launch a server. If you register the bare name
+> `municode-pp-mcp`, the launch fails and the server shows as not connected. Find
+> the absolute path with `command -v municode-pp-mcp` (e.g. `/home/you/go/bin/municode-pp-mcp`)
+> and use that.
+
 Add it to `~/Library/Application Support/Claude/claude_desktop_config.json`
 (macOS) or the equivalent on your OS:
 
@@ -72,7 +79,7 @@ Add it to `~/Library/Application Support/Claude/claude_desktop_config.json`
 {
   "mcpServers": {
     "municode": {
-      "command": "municode-pp-mcp"
+      "command": "/home/you/go/bin/municode-pp-mcp"
     }
   }
 }
@@ -82,10 +89,17 @@ Restart Claude Desktop. You should see "municode" in the tools list.
 
 ### Option C — Claude Code
 
+Register the server with its **absolute path** (see the PATH note under Option B —
+Claude Code launches the server in a minimal environment where `~/go/bin` is
+usually not on PATH, so a bare name shows as not connected):
+
 ```bash
-claude mcp add municode-pp-mcp -- municode-pp-mcp
-claude mcp list      # verify it's connected
+claude mcp add municode-pp-mcp -- "$(command -v municode-pp-mcp)"
+claude mcp list      # verify it shows connected
 ```
+
+To make it available in every project (not just the current directory), add user
+scope: `claude mcp add -s user municode-pp-mcp -- "$(command -v municode-pp-mcp)"`.
 
 ### Option D — any other MCP host
 
@@ -331,6 +345,24 @@ tools." `context` carries the clone-first guidance that steers tool choice.
 **"Nothing shows up in the resource list."**
 The list is empty until you clone at least one city. After a clone it populates
 automatically (no restart needed).
+
+**"`claude mcp list` (or Claude Desktop) shows the server as *not connected*."**
+Almost always a PATH problem. `go install` puts the binary in `~/go/bin`, which is
+usually not on the PATH the MCP host uses to launch servers, so a bare
+`municode-pp-mcp` can't be found. Re-register with the **absolute path**:
+```bash
+claude mcp remove municode-pp-mcp
+claude mcp add municode-pp-mcp -- "$(command -v municode-pp-mcp)"
+claude mcp list
+```
+For Claude Desktop, put the absolute path in the `"command"` field of the JSON
+config. Two more things to check if it still won't connect:
+- **Scope/directory** — `claude mcp add` defaults to project-local scope; run
+  `claude mcp list` from the same directory you added it in, or add with `-s user`
+  so it's visible everywhere.
+- **Stale store lock** — a previously interrupted clone can leave a WAL sidecar
+  that makes the server error on its first read; clear it (see the "malformed"
+  entry above).
 
 **"Is the server actually connected?"**
 In Claude Code: `claude mcp list`. In Claude Desktop: check the tools/plug icon in
