@@ -12,12 +12,15 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/KnitSecurity/municode-pp-cli/internal/client"
 	"github.com/KnitSecurity/municode-pp-cli/internal/store"
 )
 
 // mcStoredDoc is a synced section, stored as a generic "document" resource.
+// The trailing fields are populated only for PDF-backed documents (Rules,
+// ordinances) and stay empty/omitted for HTML code sections.
 type mcStoredDoc struct {
 	DocID      string     `json:"doc_id"`
 	NodeID     string     `json:"node_id"`
@@ -32,7 +35,19 @@ type mcStoredDoc struct {
 	Text       string     `json:"text"`
 	Citation   string     `json:"citation"`
 	OrdHistory []mcOrdRef `json:"ord_history,omitempty"`
+	// PDF-doc fields (Rules / ordinances):
+	SourceURL     string `json:"source_url,omitempty"`     // original PDF download URL
+	SourceFile    string `json:"source_file,omitempty"`    // OriginalFileName
+	Extractor     string `json:"extractor,omitempty"`      // pdftotext | go | none
+	TextExtracted *bool  `json:"text_extracted,omitempty"` // false when only a scan (no text)
+	DocDate       string `json:"doc_date,omitempty"`       // SortDate
+	Breadcrumb    string `json:"breadcrumb,omitempty"`     // "Rules > City Manager/Emergency"
 }
+
+// mcRuleDocType is the resource_type for Rules PDFs, distinct from HTML code
+// sections ("document") so the two can be listed/read separately while sharing
+// the same store and FTS index.
+const mcRuleDocType = "munidoc"
 
 func mcStoreID(clientID int, docID string) string {
 	return strconv.Itoa(clientID) + ":" + docID
@@ -202,6 +217,132 @@ func mcSyncCode(ctx context.Context, c *client.Client, db *store.Store, res *mcR
 	return stored, partial, nil
 }
 
+// mcSyncRules walks the MuniDocs "rules" tree, downloads each rule's PDF,
+// extracts its text (pdftotext -> pure-Go -> scan-reference), and stores it as a
+// munidoc resource. Returns (stored, partial, error). partial is true if the
+// walk was cancelled (Ctrl-C / deadline). A single PDF that fails to download is
+// skipped (reported via progress), not fatal — a re-clone retries it.
+func mcSyncRules(ctx context.Context, c *client.Client, db *store.Store, res *mcResolved, mdProductID int, timeout time.Duration, progress func(string)) (int, bool, error) {
+	stored := 0
+	skipped := 0
+	// DFS the folder tree from the rules root.
+	stack := []string{mcRulesRootNode}
+	visited := map[string]bool{}
+	crumbOf := map[string]string{mcRulesRootNode: "Rules"}
+
+	for len(stack) > 0 {
+		if ctx.Err() != nil {
+			return stored, true, nil
+		}
+		node := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if visited[node] {
+			continue
+		}
+		visited[node] = true
+
+		children, err := mcMuniDocsChildren(ctx, c, mdProductID, node)
+		if err != nil {
+			if ctx.Err() != nil {
+				return stored, true, nil
+			}
+			return stored, false, fmt.Errorf("walking rules at %s: %w", node, err)
+		}
+		for _, ch := range children {
+			if ch.Id == "" {
+				continue
+			}
+			if ch.Data.IsFolder {
+				crumbOf[ch.Id] = crumbOf[node] + " > " + ch.Heading
+				if !visited[ch.Id] {
+					stack = append(stack, ch.Id)
+				}
+				continue
+			}
+			ok, err := mcStoreRuleDoc(ctx, c, db, res, mdProductID, ch, crumbOf[node], timeout)
+			if err != nil {
+				if ctx.Err() != nil {
+					return stored, true, nil
+				}
+				return stored, false, err
+			}
+			if ok {
+				stored++
+			} else {
+				skipped++
+				if progress != nil {
+					progress(fmt.Sprintf("skipped rule %q (PDF download failed; re-clone to retry)", ch.Heading))
+				}
+			}
+			if progress != nil && stored%20 == 0 && stored > 0 {
+				progress(fmt.Sprintf("stored %d rules...", stored))
+			}
+		}
+	}
+	if progress != nil && skipped > 0 {
+		progress(fmt.Sprintf("rules: %d stored, %d skipped (download failures)", stored, skipped))
+	}
+	return stored, false, nil
+}
+
+// mcStoreRuleDoc fetches one rule leaf's metadata + PDF, extracts text, and
+// stores it. Returns ok=false (nil error) when the PDF download fails so the
+// caller can count it as skipped without aborting the clone.
+func mcStoreRuleDoc(ctx context.Context, c *client.Client, db *store.Store, res *mcResolved, mdProductID int, node mcMuniDocNode, breadcrumb string, timeout time.Duration) (bool, error) {
+	meta, err := mcMuniDocMetadata(ctx, c, mdProductID, node.Id)
+	if err != nil {
+		if ctx.Err() != nil {
+			return false, ctx.Err()
+		}
+		return false, nil // metadata blip: skip, re-clone retries
+	}
+	url := mcMuniDocPDFURL(mdProductID, node.Id)
+	pdfBytes, err := mcFetchPDF(ctx, url, timeout)
+	if err != nil {
+		if ctx.Err() != nil {
+			return false, ctx.Err()
+		}
+		return false, nil // download failed: skip (non-fatal)
+	}
+	text, extractor := mcExtractPDF(ctx, pdfBytes)
+	extracted := text != ""
+	title := node.Heading
+	if title == "" {
+		title = meta.Heading
+	}
+	rec := mcStoredDoc{
+		DocID:         node.Id,
+		NodeID:        node.Id,
+		ClientID:      res.ClientID,
+		Client:        res.ClientName,
+		State:         res.StateAbbr,
+		ProductID:     mdProductID,
+		Title:         title,
+		Text:          text,
+		Citation:      mcMuniDocLibraryURL(res, node.Id),
+		SourceURL:     url,
+		SourceFile:    meta.OriginalFileName,
+		Extractor:     extractor,
+		TextExtracted: &extracted,
+		DocDate:       meta.SortDate,
+		Breadcrumb:    breadcrumb,
+	}
+	payload, err := json.Marshal(rec)
+	if err != nil {
+		return false, err
+	}
+	if err := db.Upsert(mcRuleDocType, mcStoreID(res.ClientID, node.Id), payload); err != nil {
+		return false, fmt.Errorf("storing rule %s: %w", node.Id, err)
+	}
+	return true, nil
+}
+
+// mcMuniDocLibraryURL builds the public library permalink for a MuniDocs node.
+func mcMuniDocLibraryURL(res *mcResolved, nodeID string) string {
+	return fmt.Sprintf("https://library.municode.com/%s/%s/munidocs/munidocs?nodeId=%s",
+		strings.ToLower(res.StateAbbr), mcSlug(res.ClientName), nodeID)
+}
+
 // mcReadLocalSections returns the stored sections for a node from the clone:
 // the node itself plus its direct children (approximating a live content
 // chunk). Empty (not error) when the node is not cloned. Offline only.
@@ -217,6 +358,13 @@ func mcReadLocalSections(ctx context.Context, db *store.Store, clientID int, nod
 func mcLoadCityDocs(ctx context.Context, db *store.Store, clientID int) ([]mcStoredDoc, error) {
 	return mcScanDocs(ctx, db, `SELECT data FROM resources WHERE resource_type = ? AND json_extract(data,'$.client_id') = ?`,
 		mcDocType, clientID)
+}
+
+// mcLoadCityRules returns all stored Rules (MuniDocs) for one municipality.
+func mcLoadCityRules(ctx context.Context, db *store.Store, clientID int) ([]mcStoredDoc, error) {
+	return mcScanDocs(ctx, db, `SELECT data FROM resources WHERE resource_type = ? AND json_extract(data,'$.client_id') = ?
+		ORDER BY json_extract(data,'$.doc_date') DESC`,
+		mcRuleDocType, clientID)
 }
 
 // mcScanDocs runs a SELECT data query and unmarshals each row into mcStoredDoc.

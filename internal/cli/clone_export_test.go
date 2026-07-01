@@ -4,6 +4,7 @@
 package cli
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -60,5 +61,39 @@ func TestMcExportMarkdown(t *testing.T) {
 	want := "# Section 1-1\n\nsection body\n\n## History\n\n- Ord. No. 4705\n\nSource: https://lib/TIT1_S1\n"
 	if string(got) != want {
 		t.Errorf("section markdown =\n%q\nwant\n%q", got, want)
+	}
+}
+
+func boolPtr(b bool) *bool { return &b }
+
+func TestMcExportRulesMarkdown(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "rules")
+	docs := []mcStoredDoc{
+		{DocID: "R1", Title: "2014 Prohibiting Smoking on Municipal Campus", Text: "No smoking is permitted...",
+			SourceURL: "https://func/munidocDownload/31060/R1/pdf", Citation: "https://lib/R1",
+			Breadcrumb: "Rules > City Manager/Emergency", DocDate: "2014-01-01T00:00:00",
+			Extractor: extractorPdftotext, TextExtracted: boolPtr(true)},
+		{DocID: "R2", Title: "Scanned Old Rule", Text: "",
+			SourceURL: "https://func/munidocDownload/31060/R2/pdf",
+			Extractor: extractorNone, TextExtracted: boolPtr(false)},
+	}
+	n, err := mcExportRulesMarkdown(dir, docs)
+	if err != nil {
+		t.Fatalf("export rules: %v", err)
+	}
+	if n != 2 {
+		t.Fatalf("wrote %d files, want 2", n)
+	}
+	// Text-extracted rule carries its body + metadata + source.
+	got, _ := os.ReadFile(filepath.Join(dir, "R1.md"))
+	for _, want := range []string{"# 2014 Prohibiting Smoking", "> Rules > City Manager/Emergency · 2014", "No smoking is permitted", "Source PDF: https://func"} {
+		if !bytes.Contains(got, []byte(want)) {
+			t.Errorf("R1.md missing %q; got:\n%s", want, got)
+		}
+	}
+	// Scanned rule shows the placeholder, not empty body.
+	scan, _ := os.ReadFile(filepath.Join(dir, "R2.md"))
+	if !bytes.Contains(scan, []byte("Scanned document")) {
+		t.Errorf("R2.md should note it's scanned; got:\n%s", scan)
 	}
 }

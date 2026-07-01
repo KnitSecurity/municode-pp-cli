@@ -21,6 +21,7 @@ import (
 func newNovelCloneCmd(flags *rootFlags) *cobra.Command {
 	var flagExport string
 	var flagNoExport bool
+	var flagRules bool
 	var dbPath string
 	var maxNodes int
 
@@ -41,7 +42,12 @@ func newNovelCloneCmd(flags *rootFlags) *cobra.Command {
 			"Timing: a full code can be thousands of sections, delivered in small chunk groups, so a large " +
 			"code can take several minutes. The clone runs to completion in a single pass — start it and " +
 			"walk away; there is no need to run it twice. Interrupting it (Ctrl-C) leaves a resumable " +
-			"partial: re-running skips already-stored sections.",
+			"partial: re-running skips already-stored sections.\n\n" +
+			"Rules & ordinances: pass --rules to also clone the city's Rules, which Municode serves as PDFs. " +
+			"Each PDF is downloaded and text-scanned into the store (and exported to a rules/ subfolder). " +
+			"Text extraction uses pdftotext (poppler) when it is installed for better layout, otherwise a " +
+			"built-in Go extractor; scanned/image PDFs are stored as references with no text. Installing " +
+			"pdftotext is optional — see the README.",
 		Example:     "  municode-pp-cli clone \"Atlanta, GA\"\n  municode-pp-cli clone \"Atlanta, GA\" --export ./atlanta-code",
 		Annotations: map[string]string{"mcp:read-only": "true", "pp:happy-args": "city=Boulder, CO"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -104,6 +110,28 @@ func newNovelCloneCmd(flags *rootFlags) *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("cloning %s: %w", args[0], err)
 			}
+
+			// Optional: Rules (MuniDocs PDFs). Independent opt-in that adds to the
+			// clone. Each rule is a PDF, downloaded and text-scanned into the store.
+			rulesCount := 0
+			if flagRules {
+				mdPID, mderr := mcMuniDocsProductID(ctx, c, res.ClientID)
+				if mderr != nil {
+					return fmt.Errorf("rules: %w", mderr)
+				}
+				if !flags.quiet {
+					fmt.Fprintf(cmd.ErrOrStderr(),
+						"Fetching Rules for %s, %s — each rule is a PDF that is downloaded and text-scanned%s.\n",
+						res.ClientName, res.StateAbbr, mcExtractorNote())
+				}
+				var rulesPartial bool
+				rulesCount, rulesPartial, err = mcSyncRules(ctx, c, db, res, mdPID, flags.timeout, progress)
+				if err != nil {
+					return fmt.Errorf("cloning rules for %s: %w", args[0], err)
+				}
+				partial = partial || rulesPartial
+			}
+
 			// Timestamp the clone so snapshots can be kept on disk and compared
 			// across time (pair with the job_id, which is the codification version).
 			clonedAt := time.Now().UTC().Format(time.RFC3339)
@@ -141,6 +169,19 @@ func newNovelCloneCmd(flags *rootFlags) *cobra.Command {
 					return eerr
 				}
 				exported = n
+
+				// Rules go in a rules/ subfolder with their own metadata.
+				if flagRules {
+					rules, rerr := mcLoadCityRules(ctx, db, res.ClientID)
+					if rerr != nil {
+						return rerr
+					}
+					rn, rerr := mcExportRulesMarkdown(filepath.Join(exportDir, "rules"), rules)
+					if rerr != nil {
+						return rerr
+					}
+					exported += rn
+				}
 			}
 
 			result := map[string]any{
@@ -157,6 +198,9 @@ func newNovelCloneCmd(flags *rootFlags) *cobra.Command {
 				result["export_dir"] = exportDir
 				result["exported_files"] = exported
 			}
+			if flagRules {
+				result["rules"] = rulesCount
+			}
 			if partial {
 				result["partial"] = true
 				if maxNodes > 0 {
@@ -171,6 +215,7 @@ func newNovelCloneCmd(flags *rootFlags) *cobra.Command {
 	}
 	cmd.Flags().StringVar(&flagExport, "export", "", "Export the Markdown/text tree to this directory (default: a per-city folder next to the database)")
 	cmd.Flags().BoolVar(&flagNoExport, "no-export", false, "Do not write the Markdown/text tree; store only the database")
+	cmd.Flags().BoolVar(&flagRules, "rules", false, "Also clone the city's Rules (MuniDocs PDFs): download each PDF and text-scan it into the store")
 	cmd.Flags().StringVar(&dbPath, "db", "", "SQLite database path (default: resolved data directory)")
 	cmd.Flags().IntVar(&maxNodes, "max-nodes", 0, "Cap the number of content chunks fetched (0 = whole code)")
 	return cmd
@@ -204,6 +249,52 @@ func mcExportMarkdown(dir string, docs []mcStoredDoc, manifest map[string]any) (
 			b.WriteString("\n")
 		}
 		b.WriteString("Source: " + d.Citation + "\n")
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(b.String()), 0o644); err != nil {
+			return written, fmt.Errorf("writing %s: %w", name, err)
+		}
+		written++
+	}
+	return written, nil
+}
+
+// mcExportRulesMarkdown writes one Markdown file per Rules PDF into dir, carrying
+// the breadcrumb, date, source PDF link, and either the extracted text or a
+// scanned-document note. Returns the number of files written.
+func mcExportRulesMarkdown(dir string, docs []mcStoredDoc) (int, error) {
+	if len(docs) == 0 {
+		return 0, nil
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return 0, fmt.Errorf("creating rules export dir: %w", err)
+	}
+	written := 0
+	for _, d := range docs {
+		var b strings.Builder
+		if d.Title != "" {
+			b.WriteString("# " + d.Title + "\n\n")
+		}
+		meta := d.Breadcrumb
+		if d.DocDate != "" {
+			if meta != "" {
+				meta += " · "
+			}
+			meta += d.DocDate
+		}
+		if meta != "" {
+			b.WriteString("> " + meta + "\n\n")
+		}
+		if d.TextExtracted != nil && *d.TextExtracted && d.Text != "" {
+			b.WriteString(d.Text + "\n\n")
+		} else {
+			b.WriteString("_Scanned document — no extractable text. Open the source PDF below._\n\n")
+		}
+		if d.SourceURL != "" {
+			b.WriteString("Source PDF: " + d.SourceURL + "\n")
+		}
+		if d.Citation != "" {
+			b.WriteString("Municode: " + d.Citation + "\n")
+		}
+		name := mcSafeFile(d.DocID) + ".md"
 		if err := os.WriteFile(filepath.Join(dir, name), []byte(b.String()), 0o644); err != nil {
 			return written, fmt.Errorf("writing %s: %w", name, err)
 		}
